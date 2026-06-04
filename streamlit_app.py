@@ -31,14 +31,14 @@ div[data-testid="stExpander"]>details>summary{font-size:0.88rem!important;font-w
 .bg-sell{background:#3d1a1a;color:#f85149;border:1px solid #da3633;}
 .bg-flat{background:#3d2e00;color:#e3b341;border:1px solid #9e6a03;}
 .bg-hold{background:#1a4731;color:#3fb950;border:1px solid #238636;}
-.pbox{background:#21262d;border-radius:6px;padding:6px;text-align:center;}
+.pbox{background:#21262d;border-radius:6px;padding:5px 4px;text-align:center;}
 .pbox .pl{font-size:0.58rem;color:#8b949e;text-transform:uppercase;display:block;margin-bottom:1px;}
-.pbox .pv{font-size:0.82rem;font-weight:700;color:#e6edf3;display:block;}
+.pbox .pv{font-size:0.85rem;font-weight:700;color:#e6edf3;display:block;}
 .atr-box{background:#1a2233;border:1px solid #1f6feb;border-radius:6px;padding:6px 10px;margin:5px 0;font-size:0.75rem;color:#79c0ff;}
 .sbar{background:#21262d;border-radius:5px;padding:6px 8px;margin:5px 0;font-family:monospace;font-size:0.72rem;color:#c9d1d9;word-break:break-all;}
-.ai-box{background:linear-gradient(135deg,#0d1f12,#0a1628);border:1px solid #238636;border-radius:8px;padding:10px 12px;margin:7px 0;}
-.ai-title{font-size:0.78rem;color:#3fb950;font-weight:600;margin-bottom:5px;}
-.ai-content{font-size:0.82rem;color:#c9d1d9;line-height:1.65;white-space:pre-wrap;word-break:break-word;}
+.ai-box{background:linear-gradient(135deg,#0d1f12,#0a1628);border:1px solid #238636;border-radius:8px;padding:7px 10px;margin:5px 0;}
+.ai-title{font-size:0.78rem;color:#3fb950;font-weight:600;margin-bottom:3px;}
+.ai-content{font-size:0.82rem;color:#c9d1d9;line-height:1.4;white-space:pre-wrap;word-break:break-word;}
 .pick-card{background:#161b22;border:1px solid #30363d;border-left:3px solid #58a6ff;border-radius:9px;padding:10px 12px;margin-bottom:7px;}
 .pick-name{font-size:0.95rem;font-weight:700;color:#e6edf3;}
 .pick-tag{background:#21262d;color:#8b949e;border-radius:4px;padding:1px 5px;font-size:0.65rem;margin-left:3px;}
@@ -313,7 +313,7 @@ def render_pick_card(p):
     with c2:
         if st.button("🤖 AI分析",key="ap_"+ticker):
             with st.spinner("分析中..."):
-                prompt=("["+ticker+"] "+name+" 現價"+str(price)+"元 成本"+str(round(s.get("cost",0),1))+"元 損益"+str(round(pnl_pct,1))+"% RSI"+str(round(ind.get("rsi",0),1))+" MACD"+str(round(ind.get("macd",0),3))+" K"+str(round(ind.get("k",0),1))+" 20MA"+str(round(ind.get("ma20",0),1))+" ATR"+str(round(ind.get("atr",0),1))+"\n請用繁體中文3行回答，每行20字內：\n①技術：現在多空方向+關鍵指標判讀\n②操作：支持加碼/續抱/減碼/停損，附具體價位\n③風險：最大風險一句話")
+                prompt=("["+ticker+"] "+name+" 現價"+str(price)+"元｜成本"+str(round(s.get("cost",0),0))+"｜損益"+str(round(pnl_pct,1))+"%｜RSI"+str(round(ind.get("rsi",0),0))+" MACD"+str(round(ind.get("macd",0),2))+" K"+str(round(ind.get("k",0),0))+" 20MA"+str(round(ind.get("ma20",0),0))+" ATR"+str(round(ind.get("atr",0),1))+"｜法人:"+inst_txt+"\n你是台股分析師。上述數據已提供，不需再查價格。請用繁體中文回答，格式嚴格如下（禁止空行、禁止廢話）：\n結論：[強烈買進/加碼/續抱/減碼/停損] 理由一句\n• 技術：指標判讀+支撐/壓力位\n• 操作：具體進場/加碼/停損/停利價\n• 熱度：產業近期消息+法人動向+流動性")
                 st.session_state[ai_key]=call_ai(prompt)
     if st.session_state.get(ai_key):
         st.markdown('<div class="ai-box"><div class="ai-title">🤖 AI分析（'+name+'）</div><div class="ai-content">'+st.session_state[ai_key]+'</div></div>',unsafe_allow_html=True)
@@ -379,7 +379,7 @@ def main():
         if uploaded:
             stocks=parse_csv(uploaded)
             if stocks:
-                st.success("✅ 載入 "+str(len(stocks))+" 筆："+", ".join([s["name"] for s in stocks]))
+                st.caption("✅ 已載入 "+str(len(stocks))+" 筆持股")
                 st.session_state["portfolio"]=stocks
             else: st.error("❌ 解析失敗")
     portfolio=st.session_state.get("portfolio",[])
@@ -401,8 +401,8 @@ def main():
                 with tab_obj:
                     for r in group:
                         pnl_s="+" if r["pnl_pct"]>=0 else ""
-                        pnl_t=(pnl_s+str(round(r["pnl_pct"],2))+"%") if r.get("price_ok") else "---"
-                        with st.expander(r["name"]+"  "+str(r["price"])+"  "+pnl_t,expanded=False):
+                        pnl_t=(pnl_s+str(round(r["pnl_pct"],1))+"%") if r.get("price_ok") else "---"
+                        with st.expander(r["name"]+"  現價"+str(r["price"])+"  "+pnl_t,expanded=False):
                             render_stock_card(r)
     with tab2:
         st.markdown('<div style="color:#8b949e;font-size:0.7rem;margin-bottom:6px;">技術評分排序（排除ETF）</div>',unsafe_allow_html=True)
