@@ -288,10 +288,10 @@ def show_kline(ticker,height=260):
         except: st.info("需安裝 plotly")
 
 def prow(items):
+    rows=""
     for lbl,val,color in items:
-        c1,c2=st.columns([2,3])
-        with c1: st.markdown('<span style="font-size:0.78rem;color:#8b949e;">'+lbl+'</span>',unsafe_allow_html=True)
-        with c2: st.markdown('<span style="font-size:0.95rem;font-weight:700;color:'+color+';">'+str(val)+'</span>',unsafe_allow_html=True)
+        rows+='<tr><td style="color:#8b949e;font-size:0.78rem;padding:3px 8px 3px 0;white-space:nowrap;">'+lbl+'</td><td style="color:'+color+';font-size:0.95rem;font-weight:700;padding:3px 0;">'+str(val)+'</td></tr>'
+    st.markdown('<table style="width:100%;border-collapse:collapse;">'+rows+'</table>',unsafe_allow_html=True)
 def render_pick_card(p):
     ind=p["ind"]; sc=p["score"]; name=p["name"]; ticker=p["ticker"]
     price=ind.get("price",0); entry=round(ind.get("ma20",price)*0.99,1)
@@ -311,7 +311,7 @@ def render_pick_card(p):
     with c2:
         if st.button("🤖 AI分析",key="ap_"+ticker):
             with st.spinner("分析中..."):
-                prompt=("[台股] "+name+"("+ticker+")｜現價"+str(price)+"｜成本"+str(round(s.get("cost",0),0))+"｜損益"+str(round(pnl_pct,1))+"%｜RSI"+str(round(ind.get("rsi",0),0))+" MACD"+str(round(ind.get("macd",0),2))+" K"+str(round(ind.get("k",0),0))+" 20MA"+str(round(ind.get("ma20",0),0))+" ATR"+str(round(ind.get("atr",0),1))+"｜法人:"+inst_txt+"\n你是台股分析師。以上數據已給你，禁止重複報價。請用繁體中文，500字以內，使用者看得懂的語氣，無空行，格式如下：\n【結論】買進/加碼/續抱/減碼/停損，一句話理由\n【走勢】目前技術面偏多/偏空/盤整，關鍵支撐/壓力\n【理由】為什麼現在適合或不適合操作\n【新聞】近期產業動態或法人動向（若不確定請說未知）")
+                prompt=("[台股] "+name+"("+ticker+") | 現價"+str(price)+" 成本"+str(round(s.get("cost",0),0))+" 損益"+str(round(pnl_pct,1))+"% | RSI"+str(round(ind.get("rsi",0),0))+" MACD"+str(round(ind.get("macd",0),2))+" K"+str(round(ind.get("k",0),0))+" 20MA"+str(round(ind.get("ma20",0),0))+" | 法人:"+inst_txt+"\n你是台股分析師，數據已給你，禁止重複報價，繁體中文500字以內，無空行，格式：\n【結論】一句話說明現在操作建議\n【走勢】技術面偏多或偏空，關鍵支撐壓力\n【理由】為何適合或不適合現在操作\n【新聞】近期產業動態與法人動向")
                 st.session_state[ai_key]=call_ai(prompt)
     if st.session_state.get(ai_key):
         result_text1=str(st.session_state[ai_key]).replace("<","&lt;").replace(">","&gt;")
@@ -329,11 +329,13 @@ def render_stock_card(r):
     else: badge_txt=("💚 ETF 長期持有" if is_etf else "💎 續抱/加碼 | 評分 +"+str(sc))
     pnl_color="#3fb950" if pnl_pct>=0 else "#f85149"; pnl_sign="+" if pnl_pct>=0 else ""
     st.markdown('<div class="badge '+badge_cls+'">'+badge_txt+'</div>',unsafe_allow_html=True)
-    prow([("現價",str(price)+(" ⚠️" if not price_ok else ""),""),("成本",str(cost),""),("股數",str(int(shares)),"")])
+    prow([("現價", str(price)+(" ⚠️" if not price_ok else ""), "#e6edf3")])
+    prow([("成本", str(cost), "#8b949e")])
     if price_ok:
-        prow([("損益%",pnl_sign+str(round(pnl_pct,1))+"%",pnl_color),("損益$",pnl_sign+str(int(pnl_amt))+" 元",pnl_color),("評分","+"+str(sc) if sc>0 else str(sc),"#58a6ff")])
+        prow([("損益", pnl_sign+str(int(pnl_amt))+" ("+pnl_sign+str(round(pnl_pct,1))+"%)", pnl_color)])
     else:
-        prow([("損益%","取得中","#8b949e"),("損益$","取得中","#8b949e"),("評分","N/A","#8b949e")])
+        prow([("損益", "取得中", "#8b949e")])
+    prow([("評分", ("+"+str(sc) if sc>0 else str(sc)), "#58a6ff")])
     if ind:
         atr_stop=round(price-ind.get("atr",0)*2,1); trail_stop=round(price*0.95,1)
         st.markdown('<div class="atr-box">🛡 停損 '+str(atr_stop)+' ／ 追蹤停利 '+str(trail_stop)+'</div>',unsafe_allow_html=True)
@@ -352,7 +354,7 @@ def render_stock_card(r):
             with st.spinner("分析中..."):
                 rsi_v=str(ind.get("rsi","-")); macd_v=str(round(ind.get("macd",0),3))
                 k_v=str(ind.get("k","-")); d_v=str(ind.get("d","-")); ma_v=str(ind.get("ma20","-")); atr_v=str(round(ind.get("atr",0),2))
-                prompt=("[台股] "+name+"("+str(ticker)+")｜現價"+str(price)+"｜成本"+str(cost)+"｜損益"+str(round(pnl_pct,1))+"%｜RSI "+rsi_v+" K "+k_v+"｜法人:"+inst_txt+"\n你是台股分析師。數據已提供，禁止重複報價。繁體中文，500字以內，無空行：\n【結論】建議動作+一句話理由\n【走勢】技術面方向+支撐壓力位\n【理由】操作依據\n【新聞】近期產業或法人動態"+(is_etf and " (ETF:配息/績效)" or ""))
+                prompt=("[台股] "+name+"("+str(ticker)+") | 現價"+str(price)+" 成本"+str(cost)+" 損益"+str(round(pnl_pct,1))+"% | RSI "+rsi_v+" K "+k_v+" | 法人:"+inst_txt+"\n你是台股分析師，數據已給你，禁止重複報價，繁體中文500字以內，無空行，格式：\n【結論】一句話說明現在操作建議\n【走勢】技術面偏多或偏空，關鍵支撐壓力\n【理由】為何適合或不適合現在操作\n【新聞】近期產業動態與法人動向"+(" 注意:這是ETF請加入配息評估" if is_etf else ""))
                 st.session_state[ai_key]=call_ai(prompt)
     if st.session_state.get(ai_key):
         result_text=st.session_state[ai_key].replace("<","&lt;").replace(">","&gt;")
