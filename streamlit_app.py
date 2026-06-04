@@ -288,12 +288,10 @@ def show_kline(ticker,height=260):
         except: st.info("需安裝 plotly")
 
 def prow(items):
-    cols=st.columns(len(items))
-    for i,(lbl,val,color) in enumerate(items):
-        style='color:'+color+';' if color else ''
-        with cols[i]:
-            st.markdown('<div class="pbox"><span class="pl">'+lbl+'</span><span class="pv" style="'+style+'">'+str(val)+'</span></div>',unsafe_allow_html=True)
-
+    for lbl,val,color in items:
+        c1,c2=st.columns([2,3])
+        with c1: st.markdown('<span style="font-size:0.78rem;color:#8b949e;">'+lbl+'</span>',unsafe_allow_html=True)
+        with c2: st.markdown('<span style="font-size:0.95rem;font-weight:700;color:'+color+';">'+str(val)+'</span>',unsafe_allow_html=True)
 def render_pick_card(p):
     ind=p["ind"]; sc=p["score"]; name=p["name"]; ticker=p["ticker"]
     price=ind.get("price",0); entry=round(ind.get("ma20",price)*0.99,1)
@@ -313,10 +311,11 @@ def render_pick_card(p):
     with c2:
         if st.button("🤖 AI分析",key="ap_"+ticker):
             with st.spinner("分析中..."):
-                prompt=("["+ticker+"] "+name+" 現價"+str(price)+"元｜成本"+str(round(s.get("cost",0),0))+"｜損益"+str(round(pnl_pct,1))+"%｜RSI"+str(round(ind.get("rsi",0),0))+" MACD"+str(round(ind.get("macd",0),2))+" K"+str(round(ind.get("k",0),0))+" 20MA"+str(round(ind.get("ma20",0),0))+" ATR"+str(round(ind.get("atr",0),1))+"｜法人:"+inst_txt+"\n你是台股分析師。上述數據已提供，不需再查價格。請用繁體中文回答，格式嚴格如下（禁止空行、禁止廢話）：\n結論：[強烈買進/加碼/續抱/減碼/停損] 理由一句\n• 技術：指標判讀+支撐/壓力位\n• 操作：具體進場/加碼/停損/停利價\n• 熱度：產業近期消息+法人動向+流動性")
+                prompt=("[台股] "+name+"("+ticker+")｜現價"+str(price)+"｜成本"+str(round(s.get("cost",0),0))+"｜損益"+str(round(pnl_pct,1))+"%｜RSI"+str(round(ind.get("rsi",0),0))+" MACD"+str(round(ind.get("macd",0),2))+" K"+str(round(ind.get("k",0),0))+" 20MA"+str(round(ind.get("ma20",0),0))+" ATR"+str(round(ind.get("atr",0),1))+"｜法人:"+inst_txt+"\n你是台股分析師。以上數據已給你，禁止重複報價。請用繁體中文，500字以內，使用者看得懂的語氣，無空行，格式如下：\n【結論】買進/加碼/續抱/減碼/停損，一句話理由\n【走勢】目前技術面偏多/偏空/盤整，關鍵支撐/壓力\n【理由】為什麼現在適合或不適合操作\n【新聞】近期產業動態或法人動向（若不確定請說未知）")
                 st.session_state[ai_key]=call_ai(prompt)
     if st.session_state.get(ai_key):
-        st.markdown('<div class="ai-box"><div class="ai-title">🤖 AI分析（'+name+'）</div><div class="ai-content">'+st.session_state[ai_key]+'</div></div>',unsafe_allow_html=True)
+        result_text1=str(st.session_state[ai_key]).replace("<","&lt;").replace(">","&gt;")
+        st.markdown('<div class="ai-box"><div class="ai-title">🤖 AI分析（'+name+'）</div><div class="ai-content">'+result_text1+'</div></div>',unsafe_allow_html=True)
     if st.session_state.get("skp_"+ticker): show_kline(ticker)
 
 def render_stock_card(r):
@@ -353,13 +352,11 @@ def render_stock_card(r):
             with st.spinner("分析中..."):
                 rsi_v=str(ind.get("rsi","-")); macd_v=str(round(ind.get("macd",0),3))
                 k_v=str(ind.get("k","-")); d_v=str(ind.get("d","-")); ma_v=str(ind.get("ma20","-")); atr_v=str(round(ind.get("atr",0),2))
-                prompt=("台股"+name+"("+str(ticker)+") 現價"+str(price)+"元 成本"+str(cost)+"元 損益"+str(round(pnl_pct,1))+"% 股數"+str(int(shares))+"股。")
-                if ind: prompt+=("RSI:"+rsi_v+" MACD:"+macd_v+" K:"+k_v+"/D:"+d_v+" MA20:"+ma_v+" ATR:"+atr_v+"。")
-                if is_etf: prompt+="這是ETF，分析配息率、長期績效、是否值得持有。"
-                else: prompt+="請給：①技術面現況 ②操作建議（賣/持/加碼）③停損停利點"
+                prompt=("[台股] "+name+"("+str(ticker)+")｜現價"+str(price)+"｜成本"+str(cost)+"｜損益"+str(round(pnl_pct,1))+"%｜RSI "+rsi_v+" K "+k_v+"｜法人:"+inst_txt+"\n你是台股分析師。數據已提供，禁止重複報價。繁體中文，500字以內，無空行：\n【結論】建議動作+一句話理由\n【走勢】技術面方向+支撐壓力位\n【理由】操作依據\n【新聞】近期產業或法人動態"+(is_etf and " (ETF:配息/績效)" or ""))
                 st.session_state[ai_key]=call_ai(prompt)
     if st.session_state.get(ai_key):
-        st.markdown('<div class="ai-box"><div class="ai-title">🤖 AI分析</div><div class="ai-content">'+st.session_state[ai_key]+'</div></div>',unsafe_allow_html=True)
+        result_text=st.session_state[ai_key].replace("<","&lt;").replace(">","&gt;")
+        st.markdown('<div class="ai-box"><div class="ai-title">🤖 AI分析</div><div class="ai-content">'+result_text+'</div></div>',unsafe_allow_html=True)
     if st.session_state.get("skh_"+name) and ticker: show_kline(ticker)
 
 def main():
