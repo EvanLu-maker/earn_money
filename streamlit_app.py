@@ -313,7 +313,7 @@ def render_pick_card(p):
     with c2:
         if st.button("🤖 AI分析",key="ap_"+ticker):
             with st.spinner("分析中..."):
-                prompt=("台股"+name+"("+ticker+")現價"+str(price)+"元。RSI:"+str(ind.get("rsi",0))+" MACD:"+str(ind.get("macd",0))+" K:"+str(ind.get("k",0))+"/D:"+str(ind.get("d",0))+" 20MA:"+str(ind.get("ma20",0))+" ATR:"+str(ind.get("atr",0))+"。請分析：①公司做什麼、現在產業熱度 ②技術面訊號解讀 ③具體操作策略（進場/停損/停利價位）")
+                prompt=("["+ticker+"] "+name+" 現價"+str(price)+"元 成本"+str(round(s.get("cost",0),1))+"元 損益"+str(round(pnl_pct,1))+"% RSI"+str(round(ind.get("rsi",0),1))+" MACD"+str(round(ind.get("macd",0),3))+" K"+str(round(ind.get("k",0),1))+" 20MA"+str(round(ind.get("ma20",0),1))+" ATR"+str(round(ind.get("atr",0),1))+"\n請用繁體中文3行回答，每行20字內：\n①技術：現在多空方向+關鍵指標判讀\n②操作：支持加碼/續抱/減碼/停損，附具體價位\n③風險：最大風險一句話")
                 st.session_state[ai_key]=call_ai(prompt)
     if st.session_state.get(ai_key):
         st.markdown('<div class="ai-box"><div class="ai-title">🤖 AI分析（'+name+'）</div><div class="ai-content">'+st.session_state[ai_key]+'</div></div>',unsafe_allow_html=True)
