@@ -61,23 +61,45 @@ hr{border-color:#21262d!important;margin:10px 0!important;}
 """, unsafe_allow_html=True)
 
 # =============================================
-# AI 模組
+# AI 模組 - 支援 Claude / OpenAI / Gemini
 # =============================================
 def get_ai_client():
+    """優先順序：Claude > OpenAI > Gemini"""
     try:
-        key = st.secrets.get("OPENAI_API_KEY", "")
+        key = st.secrets.get("ANTHROPIC_API_KEY","")
+        if key and key.startswith("sk-ant"): return "claude", key
+    except: pass
+    try:
+        key = st.secrets.get("OPENAI_API_KEY","")
         if key: return "openai", key
-    except Exception: pass
+    except: pass
     try:
-        key = st.secrets.get("GEMINI_API_KEY", "")
+        key = st.secrets.get("GEMINI_API_KEY","")
         if key: return "gemini", key
-    except Exception: pass
+    except: pass
     return None, None
 
 def call_ai(prompt):
     provider, key = get_ai_client()
-    if not provider: return "❌ 尚未設定 API Key，請在 Streamlit Secrets 設定 GEMINI_API_KEY（AIza...開頭）"
-    if provider == "openai":
+    if not provider:
+        return "❌ 尚未設定 API Key\n請在 Streamlit Secrets 設定：\nANTHROPIC_API_KEY（sk-ant-...）\n或 GEMINI_API_KEY（AIzaSy...）"
+
+    if provider == "claude":
+        try:
+            import anthropic
+            client = anthropic.Anthropic(api_key=key)
+            msg = client.messages.create(
+                model="claude-opus-4-5",
+                max_tokens=600,
+                system="你是台股技術分析師。用繁體中文，精簡直接，條列式回答，不要免責聲明。",
+                messages=[{"role":"user","content":prompt}]
+            )
+            return msg.content[0].text.strip()
+        except ImportError:
+            return "需安裝 anthropic 套件（requirements.txt 已加入，重啟後可用）"
+        except Exception as e: return "Claude錯誤: "+str(e)
+
+    elif provider == "openai":
         try:
             import openai
             client = openai.OpenAI(api_key=key)
@@ -86,10 +108,11 @@ def call_ai(prompt):
                 messages=[
                     {"role":"system","content":"你是台股技術分析師。用繁體中文，精簡直接，不要免責聲明。"},
                     {"role":"user","content":prompt}
-                ], max_tokens=500, temperature=0.3
+                ], max_tokens=600, temperature=0.3
             )
             return resp.choices[0].message.content.strip()
         except Exception as e: return "OpenAI錯誤: "+str(e)
+
     elif provider == "gemini":
         models = ["gemini-2.0-flash","gemini-1.5-flash","gemini-flash-latest"]
         for model in models:
@@ -104,15 +127,15 @@ def call_ai(prompt):
                 elif "error" in data:
                     msg = data["error"].get("message","")
                     if "quota" in msg.lower() or "RESOURCE_EXHAUSTED" in msg: continue
-                    return "Gemini錯誤("+model+"): "+msg
-            except Exception: continue
-        return "Gemini: 所有模型配額已滿，請稍後再試"
+                    return "Gemini錯誤: "+msg
+            except: continue
+        return "Gemini: 配額已滿，請稍後再試或改用 Claude/OpenAI"
     return None
 
 def build_stock_prompt(s):
     lines = [
         "股票："+s.get("name","")+" ("+s.get("ticker","")+")",
-        "市價："+str(round(s.get("csv_price",0),1))+"，成本："+str(round(s.get("cost",0),1))+"，損益："+str(round(s.get("pnl_pct",0),1))+"%",
+        "即時現價："+str(round(s.get("price",0),1))+"，成本："+str(round(s.get("cost",0),1))+"，損益："+str(round(s.get("pnl_pct",0),1))+"%",
         "技術評分："+str(s.get("score",0))+"，RSI："+str(round(s.get("rsi",0),1)),
         "MACD柱："+str(round(s.get("macd_hist",0),3))+"，KD K："+str(round(s.get("k_val",0),1))+" D："+str(round(s.get("d_val",0),1)),
         "ATR停損線："+str(round(s.get("stop_price",0),1))+"，20MA："+str(round(s.get("ma20",0),1))+"（"+("上方" if s.get("above_ma20") else "下方")+"）",
@@ -125,11 +148,13 @@ def build_stock_prompt(s):
 def build_pick_prompt(p):
     lines = [
         "股票："+p.get("name","")+" ("+p.get("ticker","")+")",
-        "現價："+str(round(p.get("price",0),1))+"，建議入手："+str(p.get("entry",0)),
+        "即時現價："+str(round(p.get("price",0),1))+"，建議入手："+str(p.get("entry",0)),
         "技術評分：+"+str(p.get("score",0))+"，RSI："+str(round(p.get("rsi",0),1))+"，量比："+str(round(p.get("vol_ratio",0),1))+"x",
         "信號："+("MACD剛翻正 " if p.get("macd_flip") else "")+("均線糾結突破 " if p.get("squeeze_break") else "一般技術強勢"),
         "","請分三段回答（每段2行內）：",
-        "1.【公司簡介】做什麼、產業、市場熱度","2.【推薦原因】技術面哪裡強、符合哪個題材","3.【操作策略】入手時機、停損停利",
+        "1.【公司簡介】做什麼、產業、市場熱度（AI/光學/散熱/IC等）",
+        "2.【推薦原因】技術面哪裡強、符合哪個當前熱門題材",
+        "3.【操作策略】入手時機、停損停利",
     ]
     return "\n".join(lines)
 
@@ -147,6 +172,8 @@ def build_market_prompt(picks, market):
 
 # =============================================
 # 名稱對照 & CSV 解析
+# CSV 只讀：名稱(col0)、股數(col1)、成交均價-成本(col4)
+# 市價/損益/技術指標 → 全部用 yfinance 即時抓
 # =============================================
 NAME_TO_TICKER = {
     "台積電":"2330","鴻海":"2317","聯發科":"2454","廣達":"2382",
@@ -163,6 +190,8 @@ NAME_TO_TICKER = {
     "群益台灣精選高息":"00919","主動統一升級50":"00936",
     "元大台灣50":"0050","富邦台50":"006208",
     "國泰台灣5G+":"00881","中信關鍵半導體":"00891",
+    "群創光電":"3481","新光金":"2888","玉山金":"2884",
+    "中信金":"2891","富邦金":"2881","國泰金":"2882",
 }
 
 ETF_LIST = ["0050","0056","00878","00919","00936","006208","00881",
@@ -183,9 +212,10 @@ def name_to_ticker(name):
 
 def parse_broker_csv(raw_bytes):
     """
-    券商CSV格式（固定欄位）：
+    券商CSV格式：
     col0=名稱 col1=股數 col2=總損益 col3=交易別 col4=成交均價(成本)
-    col5=市價(現價) col6=現值 col7=付出成本 col8=預估損益 col9=報酬率 col10=幣別
+    col5=市價 col6=現值 col7=付出成本 col8=預估損益 col9=報酬率...
+    只取：col0(名稱) col1(股數) col4(成本) → 其他全部 yfinance 即時
     """
     text = None
     for enc in ["utf-8-sig","utf-8","big5","cp950"]:
@@ -208,28 +238,23 @@ def parse_broker_csv(raw_bytes):
         ticker_code = name_to_ticker(first)
         if ticker_code is None: continue
         try:
-            shares = clean_num(cols[1]) if len(cols) > 1 else 1      # 股數（原始股數）
-            total_pnl = clean_num(cols[2]) if len(cols) > 2 else 0    # 總損益$
-            cost = clean_num(cols[4]) if len(cols) > 4 else 0          # 成交均價=成本
-            csv_price = clean_num(cols[5]) if len(cols) > 5 else cost  # 市價=現價（用CSV）
-            pnl_pct = clean_num(cols[9]) if len(cols) > 9 else 0       # 報酬率%
+            shares = clean_num(cols[1]) if len(cols)>1 else 1   # 股數
+            cost = clean_num(cols[4]) if len(cols)>4 else 0     # 成交均價=成本
             if cost <= 0: continue
             results.append({
-                "ticker": ticker_code, "name": first,
+                "ticker": ticker_code,
+                "name": first,
                 "cost": cost,
-                "shares": shares,           # 保留原始股數
-                "csv_price": csv_price,     # CSV市價（顯示用）
-                "total_pnl": total_pnl,     # 損益金額
-                "pnl_pct": pnl_pct,         # CSV報酬率（顯示用）
+                "shares": shares,   # 原始股數（不換算）
             })
         except: continue
 
-    if not results: return None, "未能解析到有效持股（可能名稱對照表缺少你的股票）"
+    if not results: return None, "未能解析到有效持股（可能名稱對照表缺少你的股票，請告訴我）"
     return pd.DataFrame(results), None
 
 
 # =============================================
-# 市場數據 & 技術指標
+# 市場數據 & 技術指標（全部 yfinance 即時）
 # =============================================
 @st.cache_data(ttl=1800)
 def get_market_data():
@@ -248,7 +273,7 @@ def get_market_data():
         except: result[k]=(0.0,0.0)
     return result
 
-@st.cache_data(ttl=900)
+@st.cache_data(ttl=600)
 def get_ohlcv(ticker, period="3mo"):
     try:
         data = yf.download(ticker,period=period,interval="1d",progress=False,auto_adjust=True)
@@ -262,6 +287,7 @@ def get_ohlcv(ticker, period="3mo"):
     except: return None
 
 def compute_indicators(ticker):
+    """yfinance 即時抓技術指標，包含即時現價"""
     df = get_ohlcv(ticker)
     if df is None or len(df)<26: return None
     try:
@@ -279,7 +305,8 @@ def compute_indicators(ticker):
         atr14=tr.rolling(14).mean()
         vol_avg20=volume.rolling(20).mean()
         vol_ratio=float(volume.iloc[-1]/vol_avg20.iloc[-1]) if float(vol_avg20.iloc[-1])!=0 else 1.0
-        price=float(close.iloc[-1]); atr_val=float(atr14.iloc[-1]); ma20_val=float(ma20.iloc[-1])
+        price=float(close.iloc[-1])      # ← yfinance 即時現價
+        atr_val=float(atr14.iloc[-1]); ma20_val=float(ma20.iloc[-1])
         ma5_v=float(ma5.iloc[-1]); ma10_v=float(ma10.iloc[-1])
         rsi_val=float(rsi.iloc[-1]); macd_h=float(macd_hist.iloc[-1])
         macd_h_prev=float(macd_hist.iloc[-2]) if len(macd_hist)>=2 else macd_h
@@ -289,7 +316,8 @@ def compute_indicators(ticker):
         recent_high=float(close.rolling(20).max().iloc[-1])
         squeeze=abs(ma5_v-ma20_val)/ma20_val<0.03 and abs(ma10_v-ma20_val)/ma20_val<0.02
         return {
-            "price":price,"atr":atr_val,"ma20":ma20_val,
+            "price":price,              # yfinance 即時現價
+            "atr":atr_val,"ma20":ma20_val,
             "rsi":rsi_val,"macd_hist":macd_h,"macd_hist_prev":macd_h_prev,
             "k_val":k,"d_val":d,"k_prev":k_prev,"d_prev":d_prev,
             "vol_ratio":vol_ratio,"recent_high":recent_high,
@@ -328,17 +356,18 @@ def calc_score(ind):
     if ind["vol_ratio"]>1.5: score+=1
     return score
 
-def classify_holding(ind, csv_price, cost):
-    """用 CSV市價 判斷是否觸及停損，技術面用 yfinance"""
+def classify_holding(ind, cost):
+    """用 yfinance 即時現價計算損益並分類"""
+    price=ind["price"]   # yfinance 即時
     atr=ind["atr"]
-    pnl_pct=(csv_price-cost)/cost*100 if cost>0 else 0
+    pnl_pct=(price-cost)/cost*100 if cost>0 else 0
+    pnl_amt=(price-cost)*1   # 每股損益（顯示用，實際需乘股數）
     atr_stop=cost-2*atr
     trail_stop=ind["recent_high"]-2*atr
     score=calc_score(ind)
     kd_up=ind["k_val"]>ind["d_val"] and ind["k_prev"]<=ind["d_prev"]
     macd_flip=ind["macd_hist"]>0 and ind["macd_hist_prev"]<=0
-    # 停損判斷：用CSV市價對比停損線
-    if csv_price<=atr_stop or (csv_price<=trail_stop and pnl_pct>10) or score<=-2: cat="sell"
+    if price<=atr_stop or (price<=trail_stop and pnl_pct>10) or score<=-2: cat="sell"
     elif pnl_pct>0 and ind["above_ma20"] and score>=1: cat="hold"
     elif (kd_up or macd_flip) and ind["above_ma20"] and pnl_pct>-15: cat="flat"
     elif score>=1 and ind["above_ma20"]: cat="hold"
@@ -347,26 +376,21 @@ def classify_holding(ind, csv_price, cost):
 
 
 # =============================================
-# 日K線圖
+# 日K線圖 & 推薦標的
 # =============================================
 def render_kline_chart(ticker, name):
     df = get_ohlcv(ticker, period="3mo")
-    if df is None or df.empty:
-        st.caption("無法取得K線資料")
-        return
+    if df is None or df.empty: st.caption("無法取得K線資料"); return
     try:
         import plotly.graph_objects as go
         fig = go.Figure()
         fig.add_trace(go.Candlestick(
-            x=df.index, open=df["Open"], high=df["High"],
-            low=df["Low"], close=df["Close"], name="K線",
-            increasing_line_color="#3fb950", increasing_fillcolor="#3fb950",
-            decreasing_line_color="#f85149", decreasing_fillcolor="#f85149",
+            x=df.index,open=df["Open"],high=df["High"],low=df["Low"],close=df["Close"],name="K線",
+            increasing_line_color="#3fb950",increasing_fillcolor="#3fb950",
+            decreasing_line_color="#f85149",decreasing_fillcolor="#f85149",
         ))
-        ma20 = df["Close"].rolling(20).mean()
-        ma5 = df["Close"].rolling(5).mean()
-        fig.add_trace(go.Scatter(x=df.index,y=ma20,mode="lines",name="20MA",line=dict(color="#58a6ff",width=1.5)))
-        fig.add_trace(go.Scatter(x=df.index,y=ma5,mode="lines",name="5MA",line=dict(color="#e3b341",width=1,dash="dot")))
+        fig.add_trace(go.Scatter(x=df.index,y=df["Close"].rolling(20).mean(),mode="lines",name="20MA",line=dict(color="#58a6ff",width=1.5)))
+        fig.add_trace(go.Scatter(x=df.index,y=df["Close"].rolling(5).mean(),mode="lines",name="5MA",line=dict(color="#e3b341",width=1,dash="dot")))
         fig.update_layout(
             paper_bgcolor="#0d1117",plot_bgcolor="#0d1117",
             font=dict(color="#8b949e",size=11),
@@ -377,14 +401,9 @@ def render_kline_chart(ticker, name):
             title=dict(text=name+" 近3月日K",font=dict(size=12,color="#e6edf3"),x=0.01),
         )
         st.plotly_chart(fig,use_container_width=True,config={"displayModeBar":False})
-    except ImportError:
-        st.caption("plotly 安裝中，請稍後重試")
-    except Exception as e:
-        st.caption("圖表錯誤: "+str(e))
+    except ImportError: st.caption("plotly 安裝中，請稍後重新整理")
+    except Exception as e: st.caption("圖表錯誤: "+str(e))
 
-# =============================================
-# 推薦標的
-# =============================================
 SCAN_TICKERS = [
     ("台積電","2330.TW"),("鴻海","2317.TW"),("聯發科","2454.TW"),("廣達","2382.TW"),
     ("緯創","3231.TW"),("技嘉","2376.TW"),("華碩","2357.TW"),("瑞昱","2379.TW"),
@@ -400,7 +419,7 @@ SCAN_TICKERS = [
     ("譜瑞-KY","4966.TW"),("富鼎","8261.TW"),("立積","4968.TW"),("宏碁","2353.TW"),
 ]
 
-ETF_LIST_SCAN = ["0050","0056","00878","00919","00936","006208","00881","00891","00896","00900"]
+ETF_LIST_SCAN=["0050","0056","00878","00919","00936","006208","00881","00891","00896","00900"]
 
 def scan_recommendations(held_tickers):
     picks_hi=[]; picks_lo=[]
@@ -445,21 +464,24 @@ def scan_recommendations(held_tickers):
 # =============================================
 ai_provider,ai_key=get_ai_client()
 ai_enabled=ai_provider is not None
-ai_badge="AI已連線" if ai_enabled else "需設定API Key"
+ai_label={"claude":"Claude","openai":"GPT-4o","gemini":"Gemini"}.get(ai_provider,"未設定")
+ai_badge="🤖 "+ai_label if ai_enabled else "需設定API Key"
 ai_color="3fb950" if ai_enabled else "e3b341"
 
 st.markdown(
     '<div class="hero-box"><div class="hero-title">📈 台股操盤 Pro &nbsp;<span style="font-size:0.7rem;color:#'+ai_color+';">'+ai_badge+'</span></div>'
-    +'<div class="hero-sub">'+datetime.datetime.now().strftime("%Y/%m/%d %H:%M")+' 更新</div></div>',
+    +'<div class="hero-sub">即時行情 '+datetime.datetime.now().strftime("%Y/%m/%d %H:%M")+' 更新</div></div>',
     unsafe_allow_html=True
 )
 
 if not ai_enabled:
     with st.expander("🔑 如何設定 AI Key",expanded=False):
-        st.markdown("1. 進入 Streamlit Cloud → App → **Manage app** → **Settings** → **Secrets**")
-        st.markdown("2. 貼上（需要 **AIza** 開頭的 Gemini Key）：")
-        st.code('GEMINI_API_KEY = "AIzaSyXXXXXXXXXXXXXXXXXXXXXXX"',language="toml")
-        st.markdown("3. 免費取得：https://aistudio.google.com/app/apikey")
+        st.markdown("**推薦用 Claude（你已有 Max 訂閱）：**")
+        st.code('ANTHROPIC_API_KEY = "sk-ant-api03-XXXX"',language="toml")
+        st.markdown("**或用 Gemini（免費）：**")
+        st.code('GEMINI_API_KEY = "AIzaSyXXXXXXXXXXXXXXX"',language="toml")
+        st.markdown("設定位置：Streamlit Cloud → App → **Manage app** → **Settings** → **Secrets**")
+        st.markdown("取得 Anthropic Key：https://console.anthropic.com/")
 
 mkt=get_market_data()
 sox_v,sox_c=mkt.get("sox",(0.0,0.0)); ndx_v,ndx_c=mkt.get("ndx",(0.0,0.0))
@@ -484,7 +506,7 @@ with st.expander("📊 今日大盤指標",expanded=False):
     with c4: st.markdown("**台指**\n### "+str(int(twii_v))+"\n"+fmt_d(twii_c),unsafe_allow_html=True)
 
 with st.expander("📂 匯入持股 CSV",expanded=True):
-    st.caption("支援券商匯出格式（名稱,股數,損益,交易別,成交均價,市價,...）")
+    st.caption("支援券商匯出格式 | 只讀：名稱、股數、成交均價 | 市價/損益全部即時抓")
     uploaded=st.file_uploader("選擇 CSV 檔案",type=["csv","txt"],label_visibility="collapsed")
 
 if uploaded is not None:
@@ -492,14 +514,11 @@ if uploaded is not None:
     df_parsed,err=parse_broker_csv(raw)
     if err:
         st.error("❌ "+err)
-        try:
-            preview=raw.decode("utf-8-sig","ignore")[:400]
-            st.code(preview,language="text")
+        try: st.code(raw.decode("utf-8-sig","ignore")[:400],language="text")
         except: pass
     else:
         st.session_state["holdings"]=df_parsed.to_dict("records")
-        names=df_parsed["name"].tolist()
-        st.success("✅ 已載入 "+str(len(df_parsed))+" 筆持股："+", ".join(names))
+        st.success("✅ 已載入 "+str(len(df_parsed))+" 筆："+", ".join(df_parsed["name"].tolist())+" | 市價/損益即時更新中...")
 
 holdings=st.session_state.get("holdings",[])
 
@@ -517,19 +536,20 @@ with tab_hold:
             name=str(h.get("name",raw_t))
             cost=float(h.get("cost",0))
             shares=float(h.get("shares",1))
-            csv_price=float(h.get("csv_price",cost))  # CSV市價
-            total_pnl=float(h.get("total_pnl",0))
-            csv_pnl_pct=float(h.get("pnl_pct",0))     # CSV報酬率%
             code=raw_t.replace(".TW","")
 
             if code in ETF_LIST:
+                # ETF: 用 yfinance 抓即時現價
+                ind_etf=compute_indicators(ticker)
+                etf_price=ind_etf["price"] if ind_etf else 0.0
+                etf_pnl=(etf_price-cost)/cost*100 if cost>0 else 0
+                etf_pnl_amt=(etf_price-cost)*shares
                 hold_list.append({
                     "name":name,"ticker":ticker,"cost":cost,"shares":shares,
-                    "csv_price":csv_price,"pnl_pct":csv_pnl_pct,"score":0,"category":"hold",
-                    "atr_stop":0,"trail_stop":0,"inst_note":"ETF",
+                    "price":etf_price,"pnl_pct":etf_pnl,"pnl_amt":etf_pnl_amt,
+                    "score":0,"category":"hold","atr_stop":0,"trail_stop":0,"inst_note":"ETF",
                     "rsi":50,"macd_hist":0,"k_val":50,"d_val":50,
-                    "atr":0,"ma20":0,"above_ma20":True,"stop_price":0,
-                    "total_pnl":total_pnl,"is_etf":True,
+                    "atr":0,"ma20":0,"above_ma20":True,"stop_price":0,"is_etf":True,
                 })
                 continue
 
@@ -537,28 +557,29 @@ with tab_hold:
             if not ind:
                 flat_list.append({
                     "name":name,"ticker":ticker,"cost":cost,"shares":shares,
-                    "csv_price":csv_price,"pnl_pct":csv_pnl_pct,"score":0,"category":"flat",
-                    "atr_stop":0,"trail_stop":0,"inst_note":"資料不足",
+                    "price":0.0,"pnl_pct":0,"pnl_amt":0,
+                    "score":0,"category":"flat","atr_stop":0,"trail_stop":0,"inst_note":"無法取得資料",
                     "rsi":0,"macd_hist":0,"k_val":0,"d_val":0,
-                    "atr":0,"ma20":0,"above_ma20":False,"stop_price":0,
-                    "total_pnl":total_pnl,"is_etf":False,
+                    "atr":0,"ma20":0,"above_ma20":False,"stop_price":0,"is_etf":False,
                 })
                 continue
 
-            cls=classify_holding(ind,csv_price,cost)
+            cls=classify_holding(ind,cost)
             _,inst_note=get_institutional(ticker)
+            # 損益金額 = (yfinance即時價 - 成本) × 股數
+            pnl_amt=(ind["price"]-cost)*shares
             sd={
                 "name":name,"ticker":ticker,"cost":cost,"shares":shares,
-                "csv_price":csv_price,        # 顯示用：CSV市價
-                "pnl_pct":csv_pnl_pct,        # 顯示用：CSV報酬率
+                "price":ind["price"],          # yfinance 即時現價
+                "pnl_pct":cls["pnl_pct"],      # 即時損益%
+                "pnl_amt":pnl_amt,             # 即時損益$
                 "score":cls["score"],"category":cls["category"],
                 "atr_stop":cls["atr_stop"],"trail_stop":cls["trail_stop"],
                 "inst_note":inst_note,
                 "rsi":ind["rsi"],"macd_hist":ind["macd_hist"],
                 "k_val":ind["k_val"],"d_val":ind["d_val"],
                 "atr":ind["atr"],"ma20":ind["ma20"],
-                "above_ma20":ind["above_ma20"],"stop_price":cls["atr_stop"],
-                "total_pnl":total_pnl,"is_etf":False,
+                "above_ma20":ind["above_ma20"],"stop_price":cls["atr_stop"],"is_etf":False,
             }
             if cls["category"]=="sell": sell_list.append(sd)
             elif cls["category"]=="flat": flat_list.append(sd)
@@ -577,19 +598,17 @@ with tab_hold:
             badge_class="bg-sell" if cat=="sell" else ("bg-flat" if cat=="flat" else "bg-hold")
             cat_label="賣出/停損" if cat=="sell" else ("攤平" if cat=="flat" else ("ETF長抱" if is_etf else "續抱"))
             score_str=("+" if s["score"]>=0 else "")+str(s["score"])
-            pnl_amt=s.get("total_pnl",0)
+            pnl_amt=s.get("pnl_amt",0)
             pnl_amt_str=("+" if pnl_amt>=0 else "")+"{:,.0f}".format(pnl_amt)
-            # 顯示：市價(CSV) | 成本 | 股數 | 損益% | 損益$
-            display_price=s["csv_price"]
-            label=s["name"]+"  "+str(round(display_price,1))+"  "+("+" if pnl>=0 else "")+str(round(pnl,2))+"%"
+            label=s["name"]+"  "+str(round(s["price"],1))+"  "+("+" if pnl>=0 else "")+str(round(pnl,2))+"%"
 
             with st.expander(label,expanded=False):
                 st.markdown('<div class="badge '+badge_class+'">建議：'+cat_label+('' if is_etf else ' | 評分 '+score_str)+'</div>',unsafe_allow_html=True)
                 if is_etf:
-                    st.caption("ETF不做技術分析，建議依自身策略操作")
+                    st.caption("ETF - 即時現價")
                     st.markdown(
                         '<div class="pgrid-4">'
-                        +'<div class="pbox"><span class="pl">市價(CSV)</span><span class="pv">'+str(round(display_price,2))+'</span></div>'
+                        +'<div class="pbox"><span class="pl">現價(即時)</span><span class="pv">'+str(round(s["price"],2))+'</span></div>'
                         +'<div class="pbox"><span class="pl">成本</span><span class="pv">'+str(round(s["cost"],2))+'</span></div>'
                         +'<div class="pbox"><span class="pl">損益%</span><span class="pv" style="color:'+pnl_color+';">'+("+" if pnl>=0 else "")+str(round(pnl,2))+"%</span></div>"
                         +'<div class="pbox"><span class="pl">損益$</span><span class="pv" style="color:'+pnl_color+';">'+pnl_amt_str+'</span></div>'
@@ -599,7 +618,7 @@ with tab_hold:
                     above_lbl="✅上方" if s["above_ma20"] else "❌下方"
                     st.markdown(
                         '<div class="pgrid-5">'
-                        +'<div class="pbox"><span class="pl">市價(CSV)</span><span class="pv">'+str(round(display_price,1))+'</span></div>'
+                        +'<div class="pbox"><span class="pl">現價(即時)</span><span class="pv">'+str(round(s["price"],1))+'</span></div>'
                         +'<div class="pbox"><span class="pl">成本</span><span class="pv">'+str(round(s["cost"],1))+'</span></div>'
                         +'<div class="pbox"><span class="pl">股數</span><span class="pv">'+"{:,.0f}".format(s["shares"])+'</span></div>'
                         +'<div class="pbox"><span class="pl">損益%</span><span class="pv" style="color:'+pnl_color+';">'+("+" if pnl>=0 else "")+str(round(pnl,2))+"%</span></div>"
@@ -617,8 +636,6 @@ with tab_hold:
                                 result=call_ai(build_stock_prompt(s))
                             if result:
                                 st.markdown('<div class="ai-box"><div class="ai-title">AI分析</div><div class="ai-content">'+result+'</div></div>',unsafe_allow_html=True)
-                    else:
-                        st.caption("未設定API Key，無法使用AI分析")
 
         with sub1:
             if sell_list:
@@ -640,7 +657,7 @@ with tab_pick:
         t=str(h["ticker"]).strip()
         held_tickers+=[t,t+".TW",t.replace(".TW","")]
 
-    st.caption("依技術評分排序，⭐MACD翻正/均線突破優先，至少5個")
+    st.caption("依技術評分排序 | 現價全部即時 | ⭐MACD翻正/均線突破優先 | 至少5個")
 
     if st.button("🔄 掃描推薦標的",type="primary"):
         with st.spinner("掃描中，約需30~60秒..."):
@@ -682,7 +699,7 @@ with tab_pick:
                     +'<span class="pick-tag">'+p["ticker"]+'</span>'
                     +'<span class="pick-score">評分 +'+str(p["score"])+'</span>'
                     +pt_html
-                    +'<div class="pick-info">現價 '+str(round(p["price"],1))+" | RSI "+str(round(p["rsi"],0))+" | 量比 "+str(round(p["vol_ratio"],1))+"x | 20MA "+str(round(p["ma20"],1))+"</div>"
+                    +'<div class="pick-info">即時現價 '+str(round(p["price"],1))+" | RSI "+str(round(p["rsi"],0))+" | 量比 "+str(round(p["vol_ratio"],1))+"x | 20MA "+str(round(p["ma20"],1))+"</div>"
                     +'<div class="pick-entry">📍 建議入手：'+str(p["entry"])+'</div>'
                     +'<div class="pick-atr">🛡️ 停損：'+str(p["stop"])+" | 目標："+str(p["target"])+" (+10%) | 風報比 "+str(p["rr"])+"</div>"
                     +'</div>',unsafe_allow_html=True
@@ -699,8 +716,6 @@ with tab_pick:
                             pick_reasons[p["ticker"]]=r
                             st.session_state["pick_reasons"]=pick_reasons
                             st.markdown('<div class="ai-box"><div class="ai-title">AI分析</div><div class="ai-content">'+r+'</div></div>',unsafe_allow_html=True)
-                else:
-                    st.caption("未設定API Key（需 AIza...開頭的 Gemini Key）")
     else:
         st.info("點擊上方「🔄 掃描推薦標的」開始掃描")
 
