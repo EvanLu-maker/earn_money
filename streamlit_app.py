@@ -71,7 +71,7 @@ def call_ai(prompt):
         try:
             import anthropic
             client = anthropic.Anthropic(api_key=key)
-            msg = client.messages.create(model="claude-opus-4-5", max_tokens=1000,
+            msg = client.messages.create(model="claude-opus-4-5", max_tokens=2000,
                 system="台股技術分析師。繁體中文，條列式，精簡，每點不超過2行，不要免責聲明。",
                 messages=[{"role":"user","content":prompt}])
             return msg.content[0].text.strip()
@@ -82,13 +82,13 @@ def call_ai(prompt):
             resp = openai.OpenAI(api_key=key).chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[{"role":"system","content":"台股分析師，繁體中文，條列式，精簡"},
-                          {"role":"user","content":prompt}], max_tokens=1000, temperature=0.3)
+                          {"role":"user","content":prompt}], max_tokens=2000, temperature=0.3)
             return resp.choices[0].message.content.strip()
         except Exception as e: return "OpenAI錯誤:"+str(e)
     elif provider == "gemini":
         headers = {"Content-Type":"application/json"}
         if key.startswith("AQ."): headers["x-goog-api-key"] = key
-        payload = {"contents":[{"parts":[{"text":prompt}]}],"generationConfig":{"maxOutputTokens":1000,"temperature":0.3}}
+        payload = {"contents":[{"parts":[{"text":prompt}]}],"generationConfig":{"maxOutputTokens":2500,"temperature":0.3}}
         last_err = ""
         for model in ["gemini-2.5-flash","gemini-2.0-flash","gemini-2.0-flash-lite"]:
             try:
