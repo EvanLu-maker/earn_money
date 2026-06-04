@@ -61,11 +61,8 @@ hr{border-color:#21262d!important;margin:10px 0!important;}
 """, unsafe_allow_html=True)
 
 # =============================================
-# AI 模組 - 使用 X-goog-api-key header
+# AI 模組
 # =============================================
-HARDCODED_GEMINI_KEY = "AQ.Ab8RN6IbZyPlK7yJaqWdVjWlNlLHXa-WOmhUjgl0sSf9Crf6lQ"
-GEMINI_MODEL = "gemini-2.0-flash"
-
 def get_ai_client():
     try:
         key = st.secrets.get("OPENAI_API_KEY", "")
@@ -75,13 +72,11 @@ def get_ai_client():
         key = st.secrets.get("GEMINI_API_KEY", "")
         if key: return "gemini", key
     except Exception: pass
-    if HARDCODED_GEMINI_KEY:
-        return "gemini", HARDCODED_GEMINI_KEY
     return None, None
 
 def call_ai(prompt):
     provider, key = get_ai_client()
-    if not provider: return None
+    if not provider: return "❌ 尚未設定 API Key，請在 Streamlit Secrets 設定 GEMINI_API_KEY（AIza...開頭）"
     if provider == "openai":
         try:
             import openai
@@ -89,79 +84,64 @@ def call_ai(prompt):
             resp = client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[
-                    {"role": "system", "content": "你是台股技術分析師。用繁體中文，精簡直接回答，不要免責聲明。"},
-                    {"role": "user", "content": prompt}
-                ],
-                max_tokens=500, temperature=0.3
+                    {"role":"system","content":"你是台股技術分析師。用繁體中文，精簡直接，不要免責聲明。"},
+                    {"role":"user","content":prompt}
+                ], max_tokens=500, temperature=0.3
             )
             return resp.choices[0].message.content.strip()
-        except Exception as e:
-            return "OpenAI錯誤: " + str(e)
+        except Exception as e: return "OpenAI錯誤: "+str(e)
     elif provider == "gemini":
-        # 嘗試多個模型（依序）
-        models = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-flash-latest"]
+        models = ["gemini-2.0-flash","gemini-1.5-flash","gemini-flash-latest"]
         for model in models:
             try:
-                url = "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent"
-                headers = {
-                    "Content-Type": "application/json",
-                    "X-goog-api-key": key
-                }
-                body = {"contents": [{"parts": [{"text": prompt}]}]}
-                resp = requests.post(url, json=body, headers=headers, timeout=20)
+                url = "https://generativelanguage.googleapis.com/v1beta/models/"+model+":generateContent"
+                headers = {"Content-Type":"application/json","X-goog-api-key":key}
+                body = {"contents":[{"parts":[{"text":prompt}]}]}
+                resp = requests.post(url,json=body,headers=headers,timeout=20)
                 data = resp.json()
                 if "candidates" in data:
                     return data["candidates"][0]["content"]["parts"][0]["text"].strip()
                 elif "error" in data:
-                    err_msg = data["error"].get("message","")
-                    if "quota" in err_msg.lower() or "429" in str(resp.status_code):
-                        continue  # 試下一個模型
-                    return "Gemini錯誤: " + err_msg
-            except Exception as e:
-                continue
+                    msg = data["error"].get("message","")
+                    if "quota" in msg.lower() or "RESOURCE_EXHAUSTED" in msg: continue
+                    return "Gemini錯誤("+model+"): "+msg
+            except Exception: continue
         return "Gemini: 所有模型配額已滿，請稍後再試"
     return None
 
 def build_stock_prompt(s):
     lines = [
-        "股票：" + s.get("name","") + " (" + s.get("ticker","") + ")",
-        "現價：" + str(round(s.get("price",0),1)) + "，成本：" + str(round(s.get("cost",0),1)) + "，損益：" + str(round(s.get("pnl_pct",0),1)) + "%",
-        "技術評分：" + str(s.get("score",0)) + "，RSI：" + str(round(s.get("rsi",0),1)),
-        "MACD柱：" + str(round(s.get("macd_hist",0),3)) + "，KD K：" + str(round(s.get("k_val",0),1)) + " D：" + str(round(s.get("d_val",0),1)),
-        "ATR停損線：" + str(round(s.get("stop_price",0),1)) + "，20MA：" + str(round(s.get("ma20",0),1)) + "（" + ("上方" if s.get("above_ma20") else "下方") + "）",
-        "目前分類：" + s.get("category",""),
-        "",
-        "請分三段回答（每段2行內）：",
-        "1.【現況】技術面現況",
-        "2.【操作】賣出/攤平/續抱，具體理由",
-        "3.【風險】需關注的訊號",
+        "股票："+s.get("name","")+" ("+s.get("ticker","")+")",
+        "市價："+str(round(s.get("csv_price",0),1))+"，成本："+str(round(s.get("cost",0),1))+"，損益："+str(round(s.get("pnl_pct",0),1))+"%",
+        "技術評分："+str(s.get("score",0))+"，RSI："+str(round(s.get("rsi",0),1)),
+        "MACD柱："+str(round(s.get("macd_hist",0),3))+"，KD K："+str(round(s.get("k_val",0),1))+" D："+str(round(s.get("d_val",0),1)),
+        "ATR停損線："+str(round(s.get("stop_price",0),1))+"，20MA："+str(round(s.get("ma20",0),1))+"（"+("上方" if s.get("above_ma20") else "下方")+"）",
+        "目前分類："+s.get("category",""),
+        "","請分三段回答（每段2行內）：",
+        "1.【現況】技術面現況","2.【操作】賣出/攤平/續抱，具體理由","3.【風險】需關注的訊號",
     ]
     return "\n".join(lines)
 
 def build_pick_prompt(p):
     lines = [
-        "股票：" + p.get("name","") + " (" + p.get("ticker","") + ")",
-        "現價：" + str(round(p.get("price",0),1)) + "，建議入手：" + str(p.get("entry",0)),
-        "技術評分：+" + str(p.get("score",0)) + "，RSI：" + str(round(p.get("rsi",0),1)) + "，量比：" + str(round(p.get("vol_ratio",0),1)) + "x",
-        "MACD：" + str(round(p.get("macd_hist",0),3)) + "，停損：" + str(p.get("stop",0)) + "，目標：" + str(p.get("target",0)),
-        "信號：" + ("MACD剛翻正 " if p.get("macd_flip") else "") + ("均線糾結突破 " if p.get("squeeze_break") else "一般技術強勢"),
-        "",
-        "請分三段回答（每段2行內）：",
-        "1.【公司簡介】做什麼、所屬產業、目前市場熱度（AI/光學/散熱/IC設計等）",
-        "2.【推薦原因】技術面哪裡強、是否符合當下熱門題材",
-        "3.【操作策略】入手時機、停損停利",
+        "股票："+p.get("name","")+" ("+p.get("ticker","")+")",
+        "現價："+str(round(p.get("price",0),1))+"，建議入手："+str(p.get("entry",0)),
+        "技術評分：+"+str(p.get("score",0))+"，RSI："+str(round(p.get("rsi",0),1))+"，量比："+str(round(p.get("vol_ratio",0),1))+"x",
+        "信號："+("MACD剛翻正 " if p.get("macd_flip") else "")+("均線糾結突破 " if p.get("squeeze_break") else "一般技術強勢"),
+        "","請分三段回答（每段2行內）：",
+        "1.【公司簡介】做什麼、產業、市場熱度","2.【推薦原因】技術面哪裡強、符合哪個題材","3.【操作策略】入手時機、停損停利",
     ]
     return "\n".join(lines)
 
 def build_market_prompt(picks, market):
     lines = [
-        "今日市場：費半" + market.get("sox","?") + " " + market.get("sox_chg","") + "，納指" + market.get("ndx","?") + " " + market.get("ndx_chg",""),
-        "TSM ADR：" + market.get("tsm","?") + " " + market.get("tsm_chg","") + "，台指：" + market.get("twii","?") + " " + market.get("twii_chg",""),
-        "", "今日技術面推薦：",
+        "今日市場：費半"+market.get("sox","?")+" "+market.get("sox_chg","")+"，納指"+market.get("ndx","?")+" "+market.get("ndx_chg",""),
+        "TSM ADR："+market.get("tsm","?")+" "+market.get("tsm_chg","")+"，台指："+market.get("twii","?")+" "+market.get("twii_chg",""),
+        "","今日技術面推薦：",
     ]
     for p in picks[:6]:
-        lines.append("- " + p.get("name","") + " 評分+" + str(p.get("score",0)) + " 現價" + str(round(p.get("price",0),1)) + " RSI" + str(round(p.get("rsi",0),0)))
-    lines += ["", "請給出今日大盤簡評與操作方向，不超過150字。"]
+        lines.append("- "+p.get("name","")+" 評分+"+str(p.get("score",0))+" 現價"+str(round(p.get("price",0),1))+" RSI"+str(round(p.get("rsi",0),0)))
+    lines += ["","請給出今日大盤簡評與操作方向，不超過150字。"]
     return "\n".join(lines)
 
 
@@ -202,6 +182,11 @@ def name_to_ticker(name):
     return None
 
 def parse_broker_csv(raw_bytes):
+    """
+    券商CSV格式（固定欄位）：
+    col0=名稱 col1=股數 col2=總損益 col3=交易別 col4=成交均價(成本)
+    col5=市價(現價) col6=現值 col7=付出成本 col8=預估損益 col9=報酬率 col10=幣別
+    """
     text = None
     for enc in ["utf-8-sig","utf-8","big5","cp950"]:
         try: text = raw_bytes.decode(enc); break
@@ -218,29 +203,28 @@ def parse_broker_csv(raw_bytes):
         except: continue
         if len(cols) < 3: continue
         first = cols[0].strip().strip('"').strip()
-        # 過濾表頭和總計行
         if first in ["股票名稱","總預估損益","總預估現值","總融資現金"]: continue
         if not first or first.startswith("總") or first.startswith("合計"): continue
         ticker_code = name_to_ticker(first)
         if ticker_code is None: continue
         try:
-            if len(cols) >= 6:
-                shares = clean_num(cols[1])   # 股數
-                cost = clean_num(cols[4])      # 成交均價
-                mkt_price = clean_num(cols[5]) # 市價
-                total_pnl = clean_num(cols[2]) # 總損益
-            elif len(cols) >= 2:
-                shares = 1; cost = clean_num(cols[1]); mkt_price = 0; total_pnl = 0
-            else: continue
+            shares = clean_num(cols[1]) if len(cols) > 1 else 1      # 股數（原始股數）
+            total_pnl = clean_num(cols[2]) if len(cols) > 2 else 0    # 總損益$
+            cost = clean_num(cols[4]) if len(cols) > 4 else 0          # 成交均價=成本
+            csv_price = clean_num(cols[5]) if len(cols) > 5 else cost  # 市價=現價（用CSV）
+            pnl_pct = clean_num(cols[9]) if len(cols) > 9 else 0       # 報酬率%
             if cost <= 0: continue
             results.append({
                 "ticker": ticker_code, "name": first,
-                "cost": cost, "shares": shares,
-                "market_price": mkt_price, "total_pnl": total_pnl,
+                "cost": cost,
+                "shares": shares,           # 保留原始股數
+                "csv_price": csv_price,     # CSV市價（顯示用）
+                "total_pnl": total_pnl,     # 損益金額
+                "pnl_pct": pnl_pct,         # CSV報酬率（顯示用）
             })
         except: continue
 
-    if not results: return None, "未能解析到有效持股（名稱對照表可能缺少你的股票）"
+    if not results: return None, "未能解析到有效持股（可能名稱對照表缺少你的股票）"
     return pd.DataFrame(results), None
 
 
@@ -273,10 +257,7 @@ def get_ohlcv(ticker, period="3mo"):
             x=data[c]
             if hasattr(x,"squeeze"): x=x.squeeze()
             return x
-        df = pd.DataFrame({
-            "Open": sq("Open"), "High": sq("High"),
-            "Low": sq("Low"), "Close": sq("Close"), "Volume": sq("Volume")
-        }).dropna()
+        df = pd.DataFrame({"Open":sq("Open"),"High":sq("High"),"Low":sq("Low"),"Close":sq("Close"),"Volume":sq("Volume")}).dropna()
         return df
     except: return None
 
@@ -304,12 +285,13 @@ def compute_indicators(ticker):
         macd_h_prev=float(macd_hist.iloc[-2]) if len(macd_hist)>=2 else macd_h
         k=float(k_val.iloc[-1]); d=float(d_val.iloc[-1])
         k_prev=float(k_val.iloc[-2]) if len(k_val)>=2 else k
+        d_prev=float(d_val.iloc[-2]) if len(d_val)>=2 else d
         recent_high=float(close.rolling(20).max().iloc[-1])
         squeeze=abs(ma5_v-ma20_val)/ma20_val<0.03 and abs(ma10_v-ma20_val)/ma20_val<0.02
         return {
             "price":price,"atr":atr_val,"ma20":ma20_val,
             "rsi":rsi_val,"macd_hist":macd_h,"macd_hist_prev":macd_h_prev,
-            "k_val":k,"d_val":d,"k_prev":k_prev,"d_prev":float(d_val.iloc[-2]) if len(d_val)>=2 else d,
+            "k_val":k,"d_val":d,"k_prev":k_prev,"d_prev":d_prev,
             "vol_ratio":vol_ratio,"recent_high":recent_high,
             "squeeze":squeeze,"above_ma20":price>ma20_val,
         }
@@ -346,14 +328,17 @@ def calc_score(ind):
     if ind["vol_ratio"]>1.5: score+=1
     return score
 
-def classify_holding(ind,cost):
-    price=ind["price"]; atr=ind["atr"]
-    pnl_pct=(price-cost)/cost*100 if cost>0 else 0
-    atr_stop=cost-2*atr; trail_stop=ind["recent_high"]-2*atr
+def classify_holding(ind, csv_price, cost):
+    """用 CSV市價 判斷是否觸及停損，技術面用 yfinance"""
+    atr=ind["atr"]
+    pnl_pct=(csv_price-cost)/cost*100 if cost>0 else 0
+    atr_stop=cost-2*atr
+    trail_stop=ind["recent_high"]-2*atr
     score=calc_score(ind)
     kd_up=ind["k_val"]>ind["d_val"] and ind["k_prev"]<=ind["d_prev"]
     macd_flip=ind["macd_hist"]>0 and ind["macd_hist_prev"]<=0
-    if price<=atr_stop or (price<=trail_stop and pnl_pct>10) or score<=-2: cat="sell"
+    # 停損判斷：用CSV市價對比停損線
+    if csv_price<=atr_stop or (csv_price<=trail_stop and pnl_pct>10) or score<=-2: cat="sell"
     elif pnl_pct>0 and ind["above_ma20"] and score>=1: cat="hold"
     elif (kd_up or macd_flip) and ind["above_ma20"] and pnl_pct>-15: cat="flat"
     elif score>=1 and ind["above_ma20"]: cat="hold"
@@ -372,27 +357,20 @@ def render_kline_chart(ticker, name):
     try:
         import plotly.graph_objects as go
         fig = go.Figure()
-        # K線
         fig.add_trace(go.Candlestick(
             x=df.index, open=df["Open"], high=df["High"],
-            low=df["Low"], close=df["Close"],
-            name="K線",
+            low=df["Low"], close=df["Close"], name="K線",
             increasing_line_color="#3fb950", increasing_fillcolor="#3fb950",
             decreasing_line_color="#f85149", decreasing_fillcolor="#f85149",
         ))
-        # 20MA
         ma20 = df["Close"].rolling(20).mean()
-        fig.add_trace(go.Scatter(x=df.index,y=ma20,mode="lines",name="20MA",
-            line=dict(color="#58a6ff",width=1.5)))
-        # 5MA
         ma5 = df["Close"].rolling(5).mean()
-        fig.add_trace(go.Scatter(x=df.index,y=ma5,mode="lines",name="5MA",
-            line=dict(color="#e3b341",width=1,dash="dot")))
+        fig.add_trace(go.Scatter(x=df.index,y=ma20,mode="lines",name="20MA",line=dict(color="#58a6ff",width=1.5)))
+        fig.add_trace(go.Scatter(x=df.index,y=ma5,mode="lines",name="5MA",line=dict(color="#e3b341",width=1,dash="dot")))
         fig.update_layout(
-            paper_bgcolor="#0d1117", plot_bgcolor="#0d1117",
+            paper_bgcolor="#0d1117",plot_bgcolor="#0d1117",
             font=dict(color="#8b949e",size=11),
-            margin=dict(l=0,r=0,t=24,b=0),
-            height=260,
+            margin=dict(l=0,r=0,t=28,b=0),height=260,
             xaxis=dict(gridcolor="#21262d",showgrid=True,rangeslider_visible=False),
             yaxis=dict(gridcolor="#21262d",showgrid=True,side="right"),
             legend=dict(orientation="h",y=1.02,x=0,font=dict(size=10)),
@@ -400,7 +378,7 @@ def render_kline_chart(ticker, name):
         )
         st.plotly_chart(fig,use_container_width=True,config={"displayModeBar":False})
     except ImportError:
-        st.caption("需要安裝 plotly（請在 requirements.txt 加入 plotly）")
+        st.caption("plotly 安裝中，請稍後重試")
     except Exception as e:
         st.caption("圖表錯誤: "+str(e))
 
@@ -422,11 +400,13 @@ SCAN_TICKERS = [
     ("譜瑞-KY","4966.TW"),("富鼎","8261.TW"),("立積","4968.TW"),("宏碁","2353.TW"),
 ]
 
+ETF_LIST_SCAN = ["0050","0056","00878","00919","00936","006208","00881","00891","00896","00900"]
+
 def scan_recommendations(held_tickers):
     picks_hi=[]; picks_lo=[]
     for name,ticker in SCAN_TICKERS:
         code=ticker.replace(".TW","")
-        if code in ETF_LIST or ticker in ETF_LIST: continue
+        if code in ETF_LIST_SCAN: continue
         if ticker in held_tickers or code in held_tickers: continue
         ind=compute_indicators(ticker)
         if not ind: continue
@@ -449,7 +429,7 @@ def scan_recommendations(held_tickers):
             "k_val":ind["k_val"],"d_val":ind["d_val"],
             "atr":atr,"ma20":ind["ma20"],"above_ma20":True,"vol_ratio":ind["vol_ratio"],
             "entry":entry,"stop":stop,"target":target,"rr":rr,"days_to_profit":20,
-            "priority":priority,"macd_flip":macd_flip,"squeeze_break":squeeze_break,"inst_note":"",
+            "priority":priority,"macd_flip":macd_flip,"squeeze_break":squeeze_break,
         }
         if score>=3 and ind["vol_ratio"]>=1.2: picks_hi.append(item)
         else: picks_lo.append(item)
@@ -465,7 +445,7 @@ def scan_recommendations(held_tickers):
 # =============================================
 ai_provider,ai_key=get_ai_client()
 ai_enabled=ai_provider is not None
-ai_badge="AI已連線" if ai_enabled else "AI未設定"
+ai_badge="AI已連線" if ai_enabled else "需設定API Key"
 ai_color="3fb950" if ai_enabled else "e3b341"
 
 st.markdown(
@@ -473,6 +453,13 @@ st.markdown(
     +'<div class="hero-sub">'+datetime.datetime.now().strftime("%Y/%m/%d %H:%M")+' 更新</div></div>',
     unsafe_allow_html=True
 )
+
+if not ai_enabled:
+    with st.expander("🔑 如何設定 AI Key",expanded=False):
+        st.markdown("1. 進入 Streamlit Cloud → App → **Manage app** → **Settings** → **Secrets**")
+        st.markdown("2. 貼上（需要 **AIza** 開頭的 Gemini Key）：")
+        st.code('GEMINI_API_KEY = "AIzaSyXXXXXXXXXXXXXXXXXXXXXXX"',language="toml")
+        st.markdown("3. 免費取得：https://aistudio.google.com/app/apikey")
 
 mkt=get_market_data()
 sox_v,sox_c=mkt.get("sox",(0.0,0.0)); ndx_v,ndx_c=mkt.get("ndx",(0.0,0.0))
@@ -496,11 +483,8 @@ with st.expander("📊 今日大盤指標",expanded=False):
     with c3: st.markdown("**TSM ADR**\n### "+str(round(tsm_v,2))+"\n"+fmt_d(tsm_c),unsafe_allow_html=True)
     with c4: st.markdown("**台指**\n### "+str(int(twii_v))+"\n"+fmt_d(twii_c),unsafe_allow_html=True)
 
-# =============================================
-# 匯入 CSV
-# =============================================
 with st.expander("📂 匯入持股 CSV",expanded=True):
-    st.caption("支援券商匯出格式（名稱,股數,損益,交易別,成交均價,市價...）")
+    st.caption("支援券商匯出格式（名稱,股數,損益,交易別,成交均價,市價,...）")
     uploaded=st.file_uploader("選擇 CSV 檔案",type=["csv","txt"],label_visibility="collapsed")
 
 if uploaded is not None:
@@ -520,9 +504,6 @@ if uploaded is not None:
 holdings=st.session_state.get("holdings",[])
 
 
-# =============================================
-# 主標籤頁
-# =============================================
 tab_hold,tab_pick=st.tabs(["📂 持有股","🌟 推薦入手股"])
 
 with tab_hold:
@@ -536,15 +517,15 @@ with tab_hold:
             name=str(h.get("name",raw_t))
             cost=float(h.get("cost",0))
             shares=float(h.get("shares",1))
+            csv_price=float(h.get("csv_price",cost))  # CSV市價
             total_pnl=float(h.get("total_pnl",0))
-            mkt_price=float(h.get("market_price",0))
+            csv_pnl_pct=float(h.get("pnl_pct",0))     # CSV報酬率%
             code=raw_t.replace(".TW","")
 
             if code in ETF_LIST:
-                pnl_pct=(mkt_price-cost)/cost*100 if cost>0 else 0
                 hold_list.append({
                     "name":name,"ticker":ticker,"cost":cost,"shares":shares,
-                    "price":mkt_price,"pnl_pct":pnl_pct,"score":0,"category":"hold",
+                    "csv_price":csv_price,"pnl_pct":csv_pnl_pct,"score":0,"category":"hold",
                     "atr_stop":0,"trail_stop":0,"inst_note":"ETF",
                     "rsi":50,"macd_hist":0,"k_val":50,"d_val":50,
                     "atr":0,"ma20":0,"above_ma20":True,"stop_price":0,
@@ -556,21 +537,23 @@ with tab_hold:
             if not ind:
                 flat_list.append({
                     "name":name,"ticker":ticker,"cost":cost,"shares":shares,
-                    "price":mkt_price,"pnl_pct":(mkt_price-cost)/cost*100 if cost>0 else 0,
-                    "score":0,"category":"flat","atr_stop":0,"trail_stop":0,"inst_note":"資料不足",
+                    "csv_price":csv_price,"pnl_pct":csv_pnl_pct,"score":0,"category":"flat",
+                    "atr_stop":0,"trail_stop":0,"inst_note":"資料不足",
                     "rsi":0,"macd_hist":0,"k_val":0,"d_val":0,
                     "atr":0,"ma20":0,"above_ma20":False,"stop_price":0,
                     "total_pnl":total_pnl,"is_etf":False,
                 })
                 continue
 
-            cls=classify_holding(ind,cost)
+            cls=classify_holding(ind,csv_price,cost)
             _,inst_note=get_institutional(ticker)
             sd={
                 "name":name,"ticker":ticker,"cost":cost,"shares":shares,
-                "price":ind["price"],"pnl_pct":cls["pnl_pct"],"score":cls["score"],
-                "category":cls["category"],"atr_stop":cls["atr_stop"],
-                "trail_stop":cls["trail_stop"],"inst_note":inst_note,
+                "csv_price":csv_price,        # 顯示用：CSV市價
+                "pnl_pct":csv_pnl_pct,        # 顯示用：CSV報酬率
+                "score":cls["score"],"category":cls["category"],
+                "atr_stop":cls["atr_stop"],"trail_stop":cls["trail_stop"],
+                "inst_note":inst_note,
                 "rsi":ind["rsi"],"macd_hist":ind["macd_hist"],
                 "k_val":ind["k_val"],"d_val":ind["d_val"],
                 "atr":ind["atr"],"ma20":ind["ma20"],
@@ -594,10 +577,11 @@ with tab_hold:
             badge_class="bg-sell" if cat=="sell" else ("bg-flat" if cat=="flat" else "bg-hold")
             cat_label="賣出/停損" if cat=="sell" else ("攤平" if cat=="flat" else ("ETF長抱" if is_etf else "續抱"))
             score_str=("+" if s["score"]>=0 else "")+str(s["score"])
-            # 計算損益金額（股數×現價 - 股數×成本）
             pnl_amt=s.get("total_pnl",0)
             pnl_amt_str=("+" if pnl_amt>=0 else "")+"{:,.0f}".format(pnl_amt)
-            label=s["name"]+"  "+str(round(s["price"],1))+"  "+("+" if pnl>=0 else "")+str(round(pnl,2))+"%"
+            # 顯示：市價(CSV) | 成本 | 股數 | 損益% | 損益$
+            display_price=s["csv_price"]
+            label=s["name"]+"  "+str(round(display_price,1))+"  "+("+" if pnl>=0 else "")+str(round(pnl,2))+"%"
 
             with st.expander(label,expanded=False):
                 st.markdown('<div class="badge '+badge_class+'">建議：'+cat_label+('' if is_etf else ' | 評分 '+score_str)+'</div>',unsafe_allow_html=True)
@@ -605,9 +589,9 @@ with tab_hold:
                     st.caption("ETF不做技術分析，建議依自身策略操作")
                     st.markdown(
                         '<div class="pgrid-4">'
-                        +'<div class="pbox"><span class="pl">現價</span><span class="pv">'+str(round(s["price"],1))+'</span></div>'
-                        +'<div class="pbox"><span class="pl">成本</span><span class="pv">'+str(round(s["cost"],1))+'</span></div>'
-                        +'<div class="pbox"><span class="pl">損益%</span><span class="pv" style="color:'+pnl_color+';">'+("+" if pnl>=0 else "")+str(round(pnl,1))+"%</span></div>"
+                        +'<div class="pbox"><span class="pl">市價(CSV)</span><span class="pv">'+str(round(display_price,2))+'</span></div>'
+                        +'<div class="pbox"><span class="pl">成本</span><span class="pv">'+str(round(s["cost"],2))+'</span></div>'
+                        +'<div class="pbox"><span class="pl">損益%</span><span class="pv" style="color:'+pnl_color+';">'+("+" if pnl>=0 else "")+str(round(pnl,2))+"%</span></div>"
                         +'<div class="pbox"><span class="pl">損益$</span><span class="pv" style="color:'+pnl_color+';">'+pnl_amt_str+'</span></div>'
                         +'</div>',unsafe_allow_html=True
                     )
@@ -615,10 +599,10 @@ with tab_hold:
                     above_lbl="✅上方" if s["above_ma20"] else "❌下方"
                     st.markdown(
                         '<div class="pgrid-5">'
-                        +'<div class="pbox"><span class="pl">現價</span><span class="pv">'+str(round(s["price"],1))+'</span></div>'
+                        +'<div class="pbox"><span class="pl">市價(CSV)</span><span class="pv">'+str(round(display_price,1))+'</span></div>'
                         +'<div class="pbox"><span class="pl">成本</span><span class="pv">'+str(round(s["cost"],1))+'</span></div>'
                         +'<div class="pbox"><span class="pl">股數</span><span class="pv">'+"{:,.0f}".format(s["shares"])+'</span></div>'
-                        +'<div class="pbox"><span class="pl">損益%</span><span class="pv" style="color:'+pnl_color+';">'+("+" if pnl>=0 else "")+str(round(pnl,1))+"%</span></div>"
+                        +'<div class="pbox"><span class="pl">損益%</span><span class="pv" style="color:'+pnl_color+';">'+("+" if pnl>=0 else "")+str(round(pnl,2))+"%</span></div>"
                         +'<div class="pbox"><span class="pl">損益$</span><span class="pv" style="color:'+pnl_color+';">'+pnl_amt_str+'</span></div>'
                         +'</div>'
                         +'<div class="atr-box">🛡️ ATR停損：<b>'+str(round(s["atr_stop"],1))+'</b> | 追蹤停利：<b>'+str(round(s["trail_stop"],1))+'</b></div>'
@@ -626,20 +610,15 @@ with tab_hold:
                         +'<div style="font-size:0.75rem;color:#8b949e;margin-top:4px;">法人：'+s["inst_note"]+'</div>',
                         unsafe_allow_html=True
                     )
-                    # K線圖按鈕
-                    col_k,col_ai=st.columns(2)
-                    with col_k:
-                        if st.button("📈 日K線圖",key="kline_"+s["ticker"]+"_"+tab_key):
-                            render_kline_chart(s["ticker"],s["name"])
-                    with col_ai:
-                        if ai_enabled:
-                            if st.button("🤖 AI分析",key="ai_h_"+s["ticker"]+"_"+tab_key):
-                                with st.spinner("AI分析中..."):
-                                    result=call_ai(build_stock_prompt(s))
-                                if result:
-                                    st.markdown('<div class="ai-box"><div class="ai-title">AI分析</div><div class="ai-content">'+result+'</div></div>',unsafe_allow_html=True)
-                    # 展開後自動顯示K線
                     render_kline_chart(s["ticker"],s["name"])
+                    if ai_enabled:
+                        if st.button("🤖 AI分析",key="ai_h_"+s["ticker"]+"_"+tab_key):
+                            with st.spinner("AI分析中..."):
+                                result=call_ai(build_stock_prompt(s))
+                            if result:
+                                st.markdown('<div class="ai-box"><div class="ai-title">AI分析</div><div class="ai-content">'+result+'</div></div>',unsafe_allow_html=True)
+                    else:
+                        st.caption("未設定API Key，無法使用AI分析")
 
         with sub1:
             if sell_list:
@@ -661,7 +640,7 @@ with tab_pick:
         t=str(h["ticker"]).strip()
         held_tickers+=[t,t+".TW",t.replace(".TW","")]
 
-    st.caption("依技術評分排序，⭐MACD翻正/均線突破優先，至少顯示5個")
+    st.caption("依技術評分排序，⭐MACD翻正/均線突破優先，至少5個")
 
     if st.button("🔄 掃描推薦標的",type="primary"):
         with st.spinner("掃描中，約需30~60秒..."):
@@ -708,20 +687,20 @@ with tab_pick:
                     +'<div class="pick-atr">🛡️ 停損：'+str(p["stop"])+" | 目標："+str(p["target"])+" (+10%) | 風報比 "+str(p["rr"])+"</div>"
                     +'</div>',unsafe_allow_html=True
                 )
-                # K線圖
                 render_kline_chart(p["ticker"],p["name"])
-                # AI原因
                 reason=pick_reasons.get(p["ticker"],"")
                 if reason:
                     st.markdown('<div class="ai-box"><div class="ai-title">AI分析（公司介紹+推薦原因）</div><div class="ai-content">'+reason+'</div></div>',unsafe_allow_html=True)
                 elif ai_enabled:
-                    if st.button("🤖 AI分析 "+p["name"]+"（公司介紹+推薦原因）",key="ai_p_"+p["ticker"]):
+                    if st.button("🤖 AI分析 "+p["name"],key="ai_p_"+p["ticker"]):
                         with st.spinner("AI分析中..."):
                             r=call_ai(build_pick_prompt(p))
                         if r:
                             pick_reasons[p["ticker"]]=r
                             st.session_state["pick_reasons"]=pick_reasons
                             st.markdown('<div class="ai-box"><div class="ai-title">AI分析</div><div class="ai-content">'+r+'</div></div>',unsafe_allow_html=True)
+                else:
+                    st.caption("未設定API Key（需 AIza...開頭的 Gemini Key）")
     else:
         st.info("點擊上方「🔄 掃描推薦標的」開始掃描")
 
