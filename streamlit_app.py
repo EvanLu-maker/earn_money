@@ -20,6 +20,425 @@ div[data-testid="stDecoration"]{display:none!important;}
 button[kind="header"]{display:none!important;}
 [data-testid="collapsedControl"]{display:none!important;}
 .stApp{background:#0d1117;}
+.block-container{padding:0.5rem 0.6rem 4rem!important;max-width:100%!important;}
+.hero-box{background:linear-gradient(135deg,#1a1f2e,#0f3460);border:1px solid #30363d;border-radius:10px;padding:10px 14px;margin-bottom:8px;}
+.hero-title{font-size:1.1rem;font-weight:800;color:#e6edf3;margin:0;}
+.hero-sub{color:#8b949e;font-size:0.68rem;margin-top:2px;}
+div[data-testid="stTabs"]>div:first-child button{font-size:0.85rem!important;font-weight:700!important;padding:7px 10px!important;}
+div[data-testid="stExpander"]>details{background:#161b22!important;border:1px solid #30363d!important;border-radius:10px!important;margin-bottom:6px!important;}
+div[data-testid="stExpander"]>details>summary{font-size:0.88rem!important;font-weight:600!important;color:#e6edf3!important;padding:9px 12px!important;}
+.badge{display:block;border-radius:7px;padding:7px 10px;font-size:0.8rem;font-weight:600;margin:5px 0;}
+.bg-sell{background:#3d1a1a;color:#f85149;border:1px solid #da3633;}
+.bg-flat{background:#3d2e00;color:#e3b341;border:1px solid #9e6a03;}
+.bg-hold{background:#1a4731;color:#3fb950;border:1px solid #238636;}
+.prow{display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;margin:5px 0;}
+.pbox{background:#21262d;border-radius:6px;padding:6px;text-align:center;}
+.pbox .pl{font-size:0.58rem;color:#8b949e;text-transform:uppercase;display:block;margin-bottom:1px;}
+.pbox .pv{font-size:0.82rem;font-weight:700;color:#e6edf3;display:block;}
+.atr-box{background:#1a2233;border:1px solid #1f6feb;border-radius:6px;padding:6px 10px;margin:5px 0;font-size:0.75rem;color:#79c0ff;}
+.sbar{background:#21262d;border-radius:5px;padding:6px 8px;margin:5px 0;font-family:monospace;font-size:0.72rem;color:#c9d1d9;word-break:break-all;}
+.ai-box{background:linear-gradient(135deg,#0d1f12,#0a1628);border:1px solid #238636;border-radius:8px;padding:10px 12px;margin:7px 0;}
+.ai-title{font-size:0.78rem;color:#3fb950;font-weight:600;margin-bottom:5px;}
+.ai-content{font-size:0.82rem;color:#c9d1d9;line-height:1.65;white-space:pre-wrap;word-break:break-word;}
+.pick-card{background:#161b22;border:1px solid #30363d;border-left:3px solid #58a6ff;border-radius:9px;padding:10px 12px;margin-bottom:7px;}
+.pick-name{font-size:0.95rem;font-weight:700;color:#e6edf3;}
+.pick-tag{background:#21262d;color:#8b949e;border-radius:4px;padding:1px 5px;font-size:0.65rem;margin-left:3px;}
+.pick-score{float:right;color:#58a6ff;font-weight:700;font-size:0.85rem;}
+.pick-info{font-size:0.75rem;color:#8b949e;margin-top:3px;}
+.pick-entry{color:#79c0ff;font-weight:600;font-size:0.82rem;margin-top:5px;}
+.pick-atr{background:#1a2233;border-radius:4px;padding:3px 7px;font-size:0.7rem;color:#58a6ff;margin-top:3px;display:inline-block;}
+</style>
+""", unsafe_allow_html=True)
+def get_ai_client():
+    try:
+        key = st.secrets.get("ANTHROPIC_API_KEY","")
+        if key and key.startswith("sk-ant"): return "claude", key
+    except: pass
+    try:
+        key = st.secrets.get("OPENAI_API_KEY","")
+        if key: return "openai", key
+    except: pass
+    try:
+        key = st.secrets.get("GEMINI_API_KEY","")
+        if key: return "gemini", key
+    except: pass
+    return None, None
+
+def call_ai(prompt):
+    provider, key = get_ai_client()
+    if not provider: return "❌ 未設定 API Key"
+    if provider == "claude":
+        try:
+            import anthropic
+            client = anthropic.Anthropic(api_key=key)
+            msg = client.messages.create(model="claude-opus-4-5", max_tokens=1000,
+                system="你是台股技術分析師。繁體中文，條列式，精簡，每點不超過2行，不要免責聲明。",
+                messages=[{"role":"user","content":prompt}])
+            return msg.content[0].text.strip()
+        except Exception as e: return "Claude錯誤:"+str(e)
+    elif provider == "openai":
+        try:
+            import openai
+            client = openai.OpenAI(api_key=key)
+            resp = client.chat.completions.create(model="gpt-4o-mini",
+                messages=[{"role":"system","content":"台股分析師，繁體中文，條列式，精簡"},
+                          {"role":"user","content":prompt}], max_tokens=1000, temperature=0.3)
+            return resp.choices[0].message.content.strip()
+        except Exception as e: return "OpenAI錯誤:"+str(e)
+    elif provider == "gemini":
+        models = ["gemini-2.5-flash","gemini-2.0-flash","gemini-2.0-flash-lite"]
+        headers = {"Content-Type":"application/json"}
+        if key.startswith("AQ."): headers["x-goog-api-key"] = key
+        payload = {"contents":[{"parts":[{"text":prompt}]}],
+                   "generationConfig":{"maxOutputTokens":1000,"temperature":0.3}}
+        last_err = ""
+        for model in models:
+            try:
+                url = "https://generativelanguage.googleapis.com/v1beta/models/"+model+":generateContent"
+                if not key.startswith("AQ."): url += "?key="+key
+                r = requests.post(url, headers=headers, json=payload, timeout=30)
+                if r.status_code == 200:
+                    return r.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+                elif r.status_code == 429: last_err = "配額超限"; continue
+                elif r.status_code == 404: last_err = model+"不存在"; continue
+                else: last_err = model+":"+str(r.status_code); continue
+            except Exception as e: last_err = str(e); continue
+        return "Gemini錯誤: "+last_err
+
+NAME_TO_TICKER = {
+    "台積電":"2330.TW","鴻海":"2317.TW","聯發科":"2454.TW","台達電":"2308.TW",
+    "廣達":"2382.TW","緯創":"3231.TW","和碩":"4938.TW","仁寶":"2324.TW",
+    "華碩":"2357.TW","宏碁":"2353.TW","聯電":"2303.TW","日月光投控":"3711.TW",
+    "瑞昱":"2379.TW","聯詠":"3034.TW","矽力-KY":"6415.TW","祥碩":"5269.TW",
+    "群聯":"8299.TW","智原":"3035.TW","創意":"3443.TW","新應材":"6643.TW",
+    "玉晶光":"3406.TW","大立光":"3008.TW","嘉澤":"3533.TW","信驊":"5274.TW",
+    "神盾":"6462.TW","力旺":"3529.TW","金像電":"2368.TW","欣興":"3037.TW",
+    "奇鋐":"3017.TW","雙鴻":"3324.TW","建準":"2421.TW","超眾":"6230.TW",
+    "群創":"3481.TW","友達":"2409.TW","台灣大":"4904.TW","中華電":"2412.TW",
+    "國泰金":"2882.TW","富邦金":"2881.TW","中信金":"2891.TW","兆豐金":"2886.TW",
+    "玉山金":"2884.TW","台塑":"1301.TW","南亞":"1303.TW","台化":"1326.TW",
+    "台塑化":"6505.TW","中鋼":"2002.TW","長榮":"2603.TW","陽明":"2609.TW",
+    "萬海":"2615.TW","華航":"2610.TW","長榮航空":"2618.TW",
+    "可成":"2474.TW","巨大":"9921.TW","正新":"2105.TW","世芯-KY":"3661.TW",
+    "力積電":"6770.TW","南亞科":"2408.TW","華邦電":"2344.TW","旺宏":"2337.TW",
+    "緯穎":"6669.TW","英業達":"2356.TW","技嘉":"2376.TW","微星":"2377.TW",
+    "健鼎":"3044.TW","台光電":"2383.TW",
+    "主動統一升級50":"00957.TW","元大高股息":"0056.TW","國泰永續高股息":"00878.TW",
+    "群益台灣精選高息":"00919.TW","元大台灣50":"0050.TW","富邦台50":"006208.TW",
+    "永豐台灣ESG":"00888.TW","中信關鍵半導體":"00891.TW",
+}
+ETF_LIST = {"00957.TW","0056.TW","00878.TW","00919.TW","0050.TW","006208.TW","00888.TW","00891.TW"}
+RECOMMEND_POOL = [
+    ("台積電","2330.TW"),("聯發科","2454.TW"),("鴻海","2317.TW"),("台達電","2308.TW"),
+    ("廣達","2382.TW"),("緯創","3231.TW"),("日月光投控","3711.TW"),("聯詠","3034.TW"),
+    ("矽力-KY","6415.TW"),("祥碩","5269.TW"),("信驊","5274.TW"),("神盾","6462.TW"),
+    ("奇鋐","3017.TW"),("雙鴻","3324.TW"),("世芯-KY","3661.TW"),("玉晶光","3406.TW"),
+    ("大立光","3008.TW"),("欣興","3037.TW"),("金像電","2368.TW"),("健鼎","3044.TW"),
+    ("長榮","2603.TW"),("陽明","2609.TW"),("台塑化","6505.TW"),("中鋼","2002.TW"),
+    ("力積電","6770.TW"),("南亞科","2408.TW"),("華邦電","2344.TW"),("旺宏","2337.TW"),
+    ("緯穎","6669.TW"),("技嘉","2376.TW"),("微星","2377.TW"),("英業達","2356.TW"),
+    ("群聯","8299.TW"),("瑞昱","2379.TW"),("台灣大","4904.TW"),("中華電","2412.TW"),
+]
+def get_ticker(name):
+    if name in NAME_TO_TICKER: return NAME_TO_TICKER[name]
+    for k,v in NAME_TO_TICKER.items():
+        if k in name or name in k: return v
+    return None
+
+@st.cache_data(ttl=300)
+def fetch_stock(ticker, period="3mo"):
+    try:
+        df = yf.download(ticker, period=period, interval="1d", progress=False, auto_adjust=True)
+        if df.empty: return None
+        if isinstance(df.columns, pd.MultiIndex): df.columns = df.columns.get_level_values(0)
+        df = df[["Open","High","Low","Close","Volume"]].dropna()
+        return df if len(df) >= 5 else None
+    except: return None
+
+def get_current_price(ticker):
+    try:
+        p = yf.Ticker(ticker).fast_info.last_price
+        if p and p > 0: return round(float(p), 2)
+    except: pass
+    df = fetch_stock(ticker, "5d")
+    if df is not None and len(df) > 0: return round(float(df["Close"].iloc[-1]), 2)
+    return None
+
+def calc_indicators(df):
+    if df is None or len(df)<20: return {}
+    c=df["Close"].values.flatten().astype(float); v=df["Volume"].values.flatten().astype(float)
+    delta=np.diff(c); gain=np.where(delta>0,delta,0); loss=np.where(delta<0,-delta,0)
+    ag=np.convolve(gain,np.ones(14)/14,mode='valid'); al=np.convolve(loss,np.ones(14)/14,mode='valid')
+    rs=ag[-1]/(al[-1]+1e-9); rsi=100-100/(1+rs)
+    def ema(x,n):
+        e=np.zeros(len(x)); e[n-1]=np.mean(x[:n])
+        for i in range(n,len(x)): e[i]=x[i]*2/(n+1)+e[i-1]*(1-2/(n+1))
+        return e
+    e12=ema(c,12); e26=ema(c,26); macd=e12-e26; sig=ema(macd[25:],9); hist=macd[25:]-sig
+    n=9
+    lows=[min(df["Low"].values.flatten()[max(0,i-n+1):i+1]) for i in range(len(c))]
+    highs=[max(df["High"].values.flatten()[max(0,i-n+1):i+1]) for i in range(len(c))]
+    rsv=[(c[i]-lows[i])/(highs[i]-lows[i]+1e-9)*100 for i in range(len(c))]
+    K=50.0; D=50.0
+    for r in rsv: K=K*2/3+r/3; D=D*2/3+K/3
+    ma20=np.mean(c[-20:]) if len(c)>=20 else c[-1]
+    tr=[max(df["High"].values.flatten()[i]-df["Low"].values.flatten()[i],
+            abs(df["High"].values.flatten()[i]-c[i-1]) if i>0 else 0,
+            abs(df["Low"].values.flatten()[i]-c[i-1]) if i>0 else 0) for i in range(len(c))]
+    atr=np.mean(tr[-14:]) if len(tr)>=14 else np.mean(tr)
+    avg_v=np.mean(v[-20:]) if len(v)>=20 else np.mean(v)
+    inst=round((v[-1]-avg_v)*c[-1]/1e8,1) if len(v)>0 else 0
+    return {"rsi":round(rsi,1),"macd":round(hist[-1],3) if len(hist)>0 else 0,
+            "macd_cross":bool(hist[-1]>0) if len(hist)>0 else False,
+            "k":round(K,1),"d":round(D,1),"ma20":round(ma20,1),
+            "above_ma20":bool(c[-1]>ma20),"atr":round(atr,2),"inst":inst,"price":round(float(c[-1]),2)}
+
+def score_stock(ind):
+    if not ind: return 0
+    s=0
+    if 40<=ind["rsi"]<=70: s+=1
+    if ind["macd_cross"]: s+=1
+    if ind["k"]<80 and ind["k"]>ind["d"]: s+=1
+    if ind["above_ma20"]: s+=1
+    if ind["inst"]>0: s+=1
+    return s
+
+@st.cache_data(ttl=60)
+def get_market_data():
+    res={}
+    for name,t in {"台指":"^TWII","納指":"^IXIC","TSM":"TSM"}.items():
+        try:
+            info=yf.Ticker(t).fast_info
+            res[name]={"price":round(info.last_price,2),"change_pct":round((info.last_price-info.previous_close)/info.previous_close*100,2)}
+        except: res[name]={"price":0,"change_pct":0}
+    return res
+
+def parse_csv(uploaded_file):
+    try: content = uploaded_file.read().decode("utf-8-sig")
+    except: content = uploaded_file.read().decode("big5", errors="ignore")
+    reader = csv_module.reader(io.StringIO(content)); rows = list(reader); stocks = []
+    for row in rows:
+        if len(row) < 5: continue
+        name = row[0].strip().strip('"')
+        if name in ["股票名稱","名稱",""] or name.startswith("#"): continue
+        try: shares = float(str(row[1]).replace(",","").strip().strip('"'))
+        except: continue
+        try: cost = float(str(row[4]).replace(",","").strip().strip('"'))
+        except: continue
+        if shares <= 0 or cost <= 0: continue
+        stocks.append({"name":name,"shares":shares,"cost":cost})
+    return stocks
+
+def analyze_portfolio(stocks):
+    results = []
+    for s in stocks:
+        ticker = get_ticker(s["name"]); ind = {}; price = None
+        is_etf = ticker in ETF_LIST if ticker else False
+        if ticker:
+            price = get_current_price(ticker)
+            if not is_etf:
+                df = fetch_stock(ticker)
+                if df is not None and len(df) >= 20:
+                    ind = calc_indicators(df)
+                    if ind and "price" in ind: price = ind["price"]
+        if price is None or price <= 0: price = s["cost"]
+        pnl_pct = (price - s["cost"]) / s["cost"] * 100 if s["cost"] > 0 else 0
+        pnl_amt = (price - s["cost"]) * s["shares"]
+        results.append({**s,"ticker":ticker,"price":price,"ind":ind,
+                        "pnl_pct":pnl_pct,"pnl_amt":pnl_amt,"score":score_stock(ind),
+                        "is_etf":is_etf,"price_ok":(price != s["cost"])})
+    return results
+
+def classify(r):
+    if r.get("is_etf"): return "hold"
+    if not r.get("price_ok"): return "flat"
+    sc=r["score"]; pnl=r["pnl_pct"]
+    if sc<=0 and pnl<-15: return "sell"
+    if sc>=3 and pnl>-5: return "hold"
+    return "flat"
+
+@st.cache_data(ttl=600)
+def get_recommendations():
+    picks = []
+    for name,ticker in RECOMMEND_POOL:
+        if ticker in ETF_LIST: continue
+        df=fetch_stock(ticker,"2mo")
+        if df is None or len(df)<20: continue
+        ind=calc_indicators(df)
+        if not ind: continue
+        sc=score_stock(ind)
+        if sc>=3: picks.append({"name":name,"ticker":ticker,"ind":ind,"score":sc})
+    picks.sort(key=lambda x:-x["score"])
+    if len(picks)<5:
+        for name,ticker in RECOMMEND_POOL:
+            if ticker in ETF_LIST or any(p["ticker"]==ticker for p in picks): continue
+            df=fetch_stock(ticker,"2mo")
+            if df is None or len(df)<20: continue
+            ind=calc_indicators(df)
+            if not ind: continue
+            sc=score_stock(ind)
+            if sc>=2:
+                picks.append({"name":name,"ticker":ticker,"ind":ind,"score":sc})
+                picks.sort(key=lambda x:-x["score"])
+            if len(picks)>=5: break
+    return picks[:10]
+def show_kline(ticker,height=260):
+    df=fetch_stock(ticker)
+    if df is not None and len(df)>5:
+        try:
+            import plotly.graph_objects as go
+            fig=go.Figure(data=[go.Candlestick(x=df.index,open=df["Open"],high=df["High"],low=df["Low"],close=df["Close"],increasing_line_color="#3fb950",decreasing_line_color="#f85149")])
+            fig.update_layout(height=height,paper_bgcolor="#0d1117",plot_bgcolor="#0d1117",font_color="#c9d1d9",xaxis_rangeslider_visible=False,margin=dict(l=0,r=0,t=15,b=0))
+            st.plotly_chart(fig,use_container_width=True)
+        except: st.info("需安裝 plotly")
+
+def prow(items):
+    cols=st.columns(len(items))
+    for i,(lbl,val,color) in enumerate(items):
+        style='color:'+color+';' if color else ''
+        with cols[i]:
+            st.markdown('<div class="pbox"><span class="pl">'+lbl+'</span><span class="pv" style="'+style+'">'+str(val)+'</span></div>',unsafe_allow_html=True)
+
+def render_pick_card(p):
+    ind=p["ind"]; sc=p["score"]; name=p["name"]; ticker=p["ticker"]
+    price=ind.get("price",0); entry=round(ind.get("ma20",price)*0.99,1)
+    atr_stop=round(price-ind.get("atr",0)*2,1); trail_stop=round(price*0.95,1)
+    inst_val=ind.get("inst",0)
+    inst_txt=("法人買超 "+str(inst_val)+"億") if inst_val>0 else ("法人小幅參與 "+str(abs(inst_val))+"億")
+    signals=[]
+    if ind.get("above_ma20"): signals.append("✅20MA上方")
+    if ind.get("macd_cross"): signals.append("📈MACD擴大")
+    if ind.get("k",50)<80 and ind.get("k",50)>ind.get("d",50): signals.append("🔁KD交叉")
+    st.markdown('<div class="pick-card"><span class="pick-name">'+name+'</span><span class="pick-tag">'+ticker+'</span><span class="pick-score">評分 +'+str(sc)+'</span><div class="pick-info">現價 <b style="color:#e6edf3;">'+str(price)+'</b></div><div class="pick-entry">📍 建議入手：'+str(entry)+'</div><div class="pick-atr">🛡 停損 '+str(atr_stop)+' ／ 停利 '+str(trail_stop)+'</div><div class="sbar">'+("  ".join(signals) if signals else "觀察中")+'</div><div style="font-size:0.68rem;color:#8b949e;margin-top:3px;">'+inst_txt+'</div></div>',unsafe_allow_html=True)
+    ai_key="ai_pick_"+ticker
+    col1,col2=st.columns(2)
+    with col1:
+        if st.button("📊 K線",key="kp_"+ticker):
+            st.session_state["skp_"+ticker]=not st.session_state.get("skp_"+ticker,False)
+    with col2:
+        if st.button("🤖 AI分析",key="ap_"+ticker):
+            with st.spinner("分析中..."):
+                rsi_v=str(ind.get("rsi",0)); macd_v=str(ind.get("macd",0))
+                k_v=str(ind.get("k",0)); d_v=str(ind.get("d",0)); ma_v=str(ind.get("ma20",0)); atr_v=str(ind.get("atr",0))
+                prompt=("台股"+name+"("+ticker+")現價"+str(price)+"元。RSI:"+rsi_v+" MACD:"+macd_v+" K:"+k_v+"/D:"+d_v+" 20MA:"+ma_v+" ATR:"+atr_v+"。請分析：①公司做什麼、現在產業熱度 ②技術面訊號解讀 ③具體操作策略（進場/停損/停利價位）")
+                st.session_state[ai_key]=call_ai(prompt)
+    if st.session_state.get(ai_key):
+        st.markdown('<div class="ai-box"><div class="ai-title">🤖 AI分析（'+name+'）</div><div class="ai-content">'+st.session_state[ai_key]+'</div></div>',unsafe_allow_html=True)
+    if st.session_state.get("skp_"+ticker): show_kline(ticker)
+
+def render_stock_card(r):
+    name=r["name"]; price=r["price"]; cost=r["cost"]; shares=r["shares"]
+    pnl_pct=r["pnl_pct"]; pnl_amt=r["pnl_amt"]; ind=r["ind"]; sc=r["score"]
+    ticker=r.get("ticker",""); price_ok=r.get("price_ok",False); is_etf=r.get("is_etf",False)
+    cl=classify(r)
+    badge_cls={"sell":"bg-sell","flat":"bg-flat","hold":"bg-hold"}[cl]
+    if cl=="sell": badge_txt="🔴 建議賣出/停損"
+    elif cl=="flat": badge_txt="⚠️ 無法取現價 | 手動確認" if not price_ok else "⚖️ 觀望/攤平 | 評分 "+str(sc)
+    else: badge_txt="💚 ETF 長期持有" if is_etf else "💎 續抱/加碼 | 評分 +"+str(sc)
+    pnl_color="#3fb950" if pnl_pct>=0 else "#f85149"; pnl_sign="+" if pnl_pct>=0 else ""
+    st.markdown('<div class="badge '+badge_cls+'">'+badge_txt+'</div>',unsafe_allow_html=True)
+    prow([("現價",str(price)+(" ⚠️" if not price_ok else ""),""),("成本",str(cost),""),("股數",str(int(shares)),"")])
+    if price_ok: prow([("損益%",pnl_sign+str(round(pnl_pct,1))+"%",pnl_color),("損益$",pnl_sign+str(int(pnl_amt))+" 元",pnl_color),("評分","+"+str(sc) if sc>0 else str(sc),"#58a6ff")])
+    else: prow([("損益%","取得中","#8b949e"),("損益$","取得中","#8b949e"),("評分","N/A","#8b949e")])
+    if ind:
+        atr_stop=round(price-ind.get("atr",0)*2,1); trail_stop=round(price*0.95,1)
+        st.markdown('<div class="atr-box">🛡 停損 '+str(atr_stop)+' ／ 追蹤停利 '+str(trail_stop)+'</div>',unsafe_allow_html=True)
+        ma_icon="✅" if ind.get("above_ma20") else "❌"; ma_dir="上方" if ind.get("above_ma20") else "下方"
+        st.markdown('<div class="sbar">RSI:'+str(ind.get("rsi","-"))+' MACD:'+str(round(ind.get("macd",0),3))+' K:'+str(ind.get("k","-"))+'/D:'+str(ind.get("d","-"))+' MA20:'+str(ind.get("ma20","-"))+' '+ma_icon+ma_dir+'</div>',unsafe_allow_html=True)
+        inst=ind.get("inst",0)
+        st.markdown('<div style="font-size:0.68rem;color:#8b949e;margin:3px 0;">'+("法人買超 "+str(inst)+"億" if inst>0 else "法人小幅參與 "+str(abs(inst))+"億")+'</div>',unsafe_allow_html=True)
+    elif is_etf: st.markdown('<div class="sbar">ETF — 依配息策略持有</div>',unsafe_allow_html=True)
+    ai_key="aih_"+name
+    col1,col2=st.columns(2)
+    with col1:
+        if ticker and st.button("📈 K線",key="kh_"+name):
+            st.session_state["skh_"+name]=not st.session_state.get("skh_"+name,False)
+    with col2:
+        if st.button("🤖 AI分析",key="ah_"+name):
+            with st.spinner("分析中..."):
+                rsi_v=str(ind.get("rsi","-")); macd_v=str(round(ind.get("macd",0),3))
+                k_v=str(ind.get("k","-")); d_v=str(ind.get("d","-")); ma_v=str(ind.get("ma20","-")); atr_v=str(round(ind.get("atr",0),2))
+                prompt=("台股"+name+"("+str(ticker)+") 現價"+str(price)+"元 成本"+str(cost)+"元 損益"+str(round(pnl_pct,1))+"% 股數"+str(int(shares))+"股。")
+                if ind: prompt+=("RSI:"+rsi_v+" MACD:"+macd_v+" K:"+k_v+"/D:"+d_v+" MA20:"+ma_v+" ATR:"+atr_v+"。")
+                if is_etf: prompt+="這是ETF，分析配息率、長期績效、是否值得持有。"
+                else: prompt+="請給：①技術面現況 ②操作建議（賣/持/加碼）③停損停利點"
+                st.session_state[ai_key]=call_ai(prompt)
+    if st.session_state.get(ai_key):
+        st.markdown('<div class="ai-box"><div class="ai-title">🤖 AI分析</div><div class="ai-content">'+st.session_state[ai_key]+'</div></div>',unsafe_allow_html=True)
+    if st.session_state.get("skh_"+name) and ticker: show_kline(ticker)
+def main():
+    provider,_=get_ai_client()
+    ai_label={"claude":"● Claude","openai":"● OpenAI","gemini":"● Gemini"}.get(provider,"需設定AI Key")
+    now_str=datetime.datetime.now().strftime("%Y/%m/%d %H:%M")
+    st.markdown('<div class="hero-box"><div class="hero-title">📊 台股操盤 Pro <span style="font-size:0.65rem;color:#3fb950;margin-left:6px;">'+ai_label+'</span></div><div class="hero-sub">即時行情 '+now_str+' 更新</div></div>',unsafe_allow_html=True)
+    with st.expander("📊 大盤指標",expanded=False):
+        mkt=get_market_data(); cols=st.columns(3)
+        for i,(mn,d) in enumerate(mkt.items()):
+            color="#3fb950" if d["change_pct"]>=0 else "#f85149"; sign="↑" if d["change_pct"]>=0 else "↓"
+            with cols[i]:
+                st.markdown('<div style="background:#161b22;border-radius:8px;padding:8px;text-align:center;"><div style="color:#8b949e;font-size:0.65rem;">'+mn+'</div><div style="color:#e6edf3;font-size:1.2rem;font-weight:800;">'+str(round(d["price"],0))+'</div><div style="background:'+color+'22;color:'+color+';border-radius:4px;padding:1px 5px;font-size:0.7rem;">'+sign+' '+str(abs(round(d["change_pct"],2)))+'%</div></div>',unsafe_allow_html=True)
+    with st.expander("📁 匯入持股 CSV",expanded=True):
+        st.markdown('<div style="font-size:0.7rem;color:#8b949e;margin-bottom:6px;">券商匯出 | 只讀名稱/股數/成交均價 | 市價即時抓</div>',unsafe_allow_html=True)
+        uploaded=st.file_uploader("",type=["csv","txt"],label_visibility="collapsed")
+        if uploaded:
+            stocks=parse_csv(uploaded)
+            if stocks:
+                st.success("✅ 載入 "+str(len(stocks))+" 筆："+", ".join([s["name"] for s in stocks]))
+                st.session_state["portfolio"]=stocks
+            else: st.error("❌ 解析失敗")
+    portfolio=st.session_state.get("portfolio",[])
+    tab1,tab2=st.tabs(["📁 持有股","⭐ 推薦"])
+    with tab1:
+        if not portfolio: st.info("請先匯入持股 CSV")
+        else:
+            results=analyze_portfolio(portfolio)
+            sell=[r for r in results if classify(r)=="sell"]
+            flat=[r for r in results if classify(r)=="flat"]
+            hold=[r for r in results if classify(r)=="hold"]
+            total_pnl=sum(r["pnl_amt"] for r in results if r.get("price_ok"))
+            total_cost=sum(r["cost"]*r["shares"] for r in results if r.get("price_ok"))
+            total_pnl_pct=total_pnl/total_cost*100 if total_cost>0 else 0
+            pnl_color="#3fb950" if total_pnl>=0 else "#f85149"; pnl_sign="+" if total_pnl>=0 else ""
+            st.markdown('<div style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:8px 12px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;"><span style="color:#8b949e;font-size:0.75rem;">📊 總損益</span><span style="color:'+pnl_color+';font-size:1rem;font-weight:700;">'+pnl_sign+str(int(total_pnl))+' 元（'+pnl_sign+str(round(total_pnl_pct,1))+'%）</span></div>',unsafe_allow_html=True)
+            t1,t2,t3=st.tabs(["🔴 賣出("+str(len(sell))+")","⚖️ 攤平("+str(len(flat))+")","💎 續抱("+str(len(hold))+")"])
+            for tab_obj,group in [(t1,sell),(t2,flat),(t3,hold)]:
+                with tab_obj:
+                    for r in group:
+                        pnl_s="+" if r["pnl_pct"]>=0 else ""
+                        pnl_t=(pnl_s+str(round(r["pnl_pct"],2))+"%") if r.get("price_ok") else "---"
+                        with st.expander(r["name"]+"  "+str(r["price"])+"  "+pnl_t,expanded=False):
+                            render_stock_card(r)
+    with tab2:
+        st.markdown('<div style="color:#8b949e;font-size:0.7rem;margin-bottom:6px;">技術評分排序（排除ETF）</div>',unsafe_allow_html=True)
+        with st.spinner("掃描中..."): picks=get_recommendations()
+        if picks:
+            for p in picks: render_pick_card(p)
+        else: st.info("目前無符合條件標的")
+
+if __name__ == "__main__":
+    main()
+import streamlit as st
+import pandas as pd
+import yfinance as yf
+import requests
+import datetime
+import numpy as np
+import io
+import csv as csv_module
+
+st.set_page_config(page_title="台股操盤 Pro",layout="wide",page_icon="📈",initial_sidebar_state="collapsed")
+
+st.markdown("""
+<style>
+#MainMenu{visibility:hidden;}
+header[data-testid="stHeader"]{display:none!important;}
+footer{display:none!important;}
+div[data-testid="stToolbar"]{display:none!important;}
+div[data-testid="stDecoration"]{display:none!important;}
+.viewerBadge_container__1QSob{display:none!important;}
+button[kind="header"]{display:none!important;}
+[data-testid="collapsedControl"]{display:none!important;}
+.stApp{background:#0d1117;}
 .block-container{padding:0.6rem 0.8rem 2rem!important;max-width:100%!important;}
 .hero-box{background:linear-gradient(135deg,#1a1f2e,#0f3460);border:1px solid #30363d;border-radius:12px;padding:12px 16px;margin-bottom:8px;}
 .hero-title{font-size:1.3rem;font-weight:800;color:#e6edf3;margin:0;}
