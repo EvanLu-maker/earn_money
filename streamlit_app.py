@@ -31,6 +31,13 @@ div[data-testid="stExpander"]>details>summary{font-size:0.88rem!important;font-w
 .bg-sell{background:#3d1a1a;color:#f85149;border:1px solid #da3633;}
 .bg-flat{background:#3d2e00;color:#e3b341;border:1px solid #9e6a03;}
 .bg-hold{background:#1a4731;color:#3fb950;border:1px solid #238636;}
+.bg-strong{background:#0d2a1f;color:#56d364;border:1px solid #238636;}
+.bg-add{background:#0a2040;color:#79c0ff;border:1px solid #1f6feb;}
+.bg-watch{background:#2a2000;color:#e3b341;border:1px solid #9e6a03;}
+.bg-reduce{background:#2a1500;color:#ffa657;border:1px solid #d1242f;}
+.bg-stop{background:#3d1a1a;color:#f85149;border:1px solid #da3633;}
+.bg-nodata{background:#1c1c1c;color:#8b949e;border:1px solid #484f58;}
+.bg-etf{background:#1a3040;color:#7ee787;border:1px solid #3fb950;}
 .pbox{background:#21262d;border-radius:6px;padding:5px 4px;text-align:center;}
 .pbox .pl{font-size:0.58rem;color:#8b949e;text-transform:uppercase;display:block;margin-bottom:1px;}
 .pbox .pv{font-size:0.85rem;font-weight:700;color:#e6edf3;display:block;}
@@ -242,17 +249,29 @@ def analyze_portfolio(stocks):
         results.append({**s,"ticker":ticker,"price":price,"ind":ind,
                         "pnl_pct":pnl_pct,"pnl_amt":pnl_amt,"score":score_stock(ind),
                         "is_etf":is_etf,"price_ok":(price!=s["cost"])})
+    # Compute position percentages
+    total_val=sum(r["price"]*r["shares"] for r in results if r.get("price_ok"))
+    for r in results:
+        r["pos_pct"]=round(r["price"]*r["shares"]/total_val*100,1) if total_val>0 else 0
+        sector=""
+        for sg,names in SECTOR_GROUPS.items():
+            if r["name"] in names: sector=sg; break
+        sector_total=sum(x["price"]*x["shares"] for x in results if x.get("price_ok") and any(x["name"] in n for n in [SECTOR_GROUPS.get(sector,[])]))
+        r["sector_heavy"]=sector!="" and total_val>0 and sector_total/total_val>0.45
+        r["is_noncore"]=r["name"] in NON_CORE
     return results
 
 def classify(r):
-    if r.get("is_etf"): return "hold"
-    if not r.get("price_ok"): return "flat"
-    sc=r["score"]; pnl=r["pnl_pct"]
-    if sc<=0 and pnl<-15: return "sell"
-    if sc>=3 and pnl>-5: return "hold"
-    return "flat"
+    if not r.get("price_ok"): return "nodata"
+    if r.get("is_etf"): return "etf"
+    sc=r.get("score",0); pnl=r.get("pnl_pct",0)
+    pos=r.get("pos_pct",0); heavy=r.get("sector_heavy",False); noncore=r.get("is_noncore",False)
+    if sc<=0 and pnl<-15: return "stop"
+    if sc<=1 or (pos>20 and sc<3) or (heavy and sc<3) or (noncore and pnl>10 and sc<3): return "reduce"
+    if sc>=4 and pnl>-5 and pos<=20 and not heavy: return "add"
+    if sc>=3 and pnl>-10: return "strong"
+    return "watch"
 
-@st.cache_data(ttl=600)
 def get_recommendations():
     picks=[]
     for name,ticker in RECOMMEND_POOL:
@@ -266,6 +285,8 @@ def get_recommendations():
     picks.sort(key=lambda x:-x["score"])
     if len(picks)<5:
         for name,ticker in RECOMMEND_POOL:
+SECTOR_GROUPS={"AI半導體":["台積電","聯發科","日月光投控","矽力-KY","世界","聯電","力積電","群聯","瑞昱"],"PCB電路板":["欣興","金像電","臻鼎-KY","健鼎","耀華","台光電","南電","燿華"],"面板顯示":["群創","友達","彩晶"],"電源管理":["台達電","光寶科"],"組裝代工":["鴻海","廣達","緯創","英業達","仁寶","和碩"]}
+NON_CORE=["群創","友達","金像電","欣興","彩晶"]
             if ticker in ETF_LIST or any(p["ticker"]==ticker for p in picks): continue
             df=fetch_stock(ticker,"2mo")
             if df is None or len(df)<20: continue
@@ -332,13 +353,24 @@ def render_stock_card(r):
     pnl_pct=r["pnl_pct"]; pnl_amt=r["pnl_amt"]; ind=r["ind"]; sc=r["score"]
     ticker=r.get("ticker",""); price_ok=r.get("price_ok",False); is_etf=r.get("is_etf",False)
     cl=classify(r)
-    badge_cls={"sell":"bg-sell","flat":"bg-flat","hold":"bg-hold"}[cl]
-    if cl=="sell": badge_txt="🔴 建議賣出/停損"
-    elif cl=="flat": badge_txt=("⚠️ 無法取現價|手動確認" if not price_ok else "⚖️ 觀望/攤平 | 評分 "+str(sc))
-    else: badge_txt=("💚 ETF 長期持有" if is_etf else "💎 續抱/加碼 | 評分 +"+str(sc))
-    pnl_color="#3fb950" if pnl_pct>=0 else "#f85149"; pnl_sign="+" if pnl_pct>=0 else ""
-    st.markdown('<div class="badge '+badge_cls+'">'+badge_txt+'</div>',unsafe_allow_html=True)
-    prow([("現價", str(price)+(" ⚠️" if not price_ok else ""), "#e6edf3")])
+    badge_map={"stop":("bg-stop","🔴 停損/出場"),"reduce":("bg-reduce","🟠 反彈減碼"),"watch":("bg-watch","⚠️ 觀望等待"),"strong":("bg-strong","💎 強勢續抱"),"add":("bg-add","➕ 條件加碼"),"etf":("bg-etf","💚 ETF長期持有"),"nodata":("bg-nodata","⚙️ 資料不足")}
+    badge_cls,badge_txt=badge_map.get(cl,("bg-watch","⚠️ 觀望等待"))
+    if cl=="nodata": badge_txt+=" — 現價異常，請重新抓取"
+    if r.get("pos_pct",0)>20 and cl not in ("stop","nodata","etf"): badge_txt+=" ⚠️單檔過重"
+    if r.get("sector_heavy",False) and cl not in ("stop","nodata","etf"): badge_txt+=" ⚠️族群過重"
+    if not price_ok:
+        col_r1,col_r2=st.columns([3,1])
+        with col_r1: prow([("現價", "⚙️ 資料不足", "#8b949e")])
+        with col_r2:
+            if st.button("🔄",key="retry_"+name,help="重新抓取現價"):
+                new_p=get_current_price(ticker)
+                if new_p and new_p>0:
+                    r["price"]=new_p; r["price_ok"]=True
+                    r["pnl_pct"]=(new_p-cost)/cost*100 if cost>0 else 0
+                    r["pnl_amt"]=(new_p-cost)*shares
+                    st.rerun()
+    else:
+        prow([("現價", str(price), "#e6edf3")])
     prow([("成本", str(cost), "#8b949e")])
     if price_ok:
         prow([("損益", pnl_sign+str(int(pnl_amt))+" ("+pnl_sign+str(round(pnl_pct,1))+"%)", pnl_color)])
@@ -408,28 +440,27 @@ def main():
         if not portfolio: st.info("請先匯入持股 CSV")
         else:
             results=analyze_portfolio(portfolio)
-            sell=[r for r in results if classify(r)=="sell"]
-            flat=[r for r in results if classify(r)=="flat"]
-            hold=[r for r in results if classify(r)=="hold"]
+            stop_l=[r for r in results if classify(r)=="stop"]
+            reduce_l=[r for r in results if classify(r)=="reduce"]
+            watch_l=[r for r in results if classify(r)=="watch"]
+            strong_l=[r for r in results if classify(r)=="strong"]
+            add_l=[r for r in results if classify(r)=="add"]
+            etf_l=[r for r in results if classify(r)=="etf"]
+            nodata_l=[r for r in results if classify(r)=="nodata"]
             total_pnl=sum(r["pnl_amt"] for r in results if r.get("price_ok"))
             total_cost=sum(r["cost"]*r["shares"] for r in results if r.get("price_ok"))
             total_pnl_pct=total_pnl/total_cost*100 if total_cost>0 else 0
             pnl_color="#3fb950" if total_pnl>=0 else "#f85149"; pnl_sign="+" if total_pnl>=0 else ""
             st.markdown('<div style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:8px 12px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;"><span style="color:#8b949e;font-size:0.75rem;">📊 總損益</span><span style="color:'+pnl_color+';font-size:1rem;font-weight:700;">'+pnl_sign+str(int(total_pnl))+' 元（'+pnl_sign+str(round(total_pnl_pct,1))+'%）</span></div>',unsafe_allow_html=True)
-            t1,t2,t3=st.tabs(["🔴 賣出("+str(len(sell))+")","⚖️ 攤平("+str(len(flat))+")","💎 續抱("+str(len(hold))+")"])
-            for tab_obj,group in [(t1,sell),(t2,flat),(t3,hold)]:
-                with tab_obj:
+            tabs=st.tabs(["🔴 停損("+str(len(stop_l))+")","🟠 減碼("+str(len(reduce_l))+")","⚠️ 觀望("+str(len(watch_l))+")","💎 續抱("+str(len(strong_l))+")","➕ 加碼("+str(len(add_l))+")","💚 ETF("+str(len(etf_l))+")","⚙️ 資料("+str(len(nodata_l))+")"])
+            for ti,(tab,group) in enumerate(zip(tabs,[stop_l,reduce_l,watch_l,strong_l,add_l,etf_l,nodata_l])):
+                with tab:
+                    if not group: st.caption("本區無持股")
                     for r in group:
                         pnl_s="+" if r["pnl_pct"]>=0 else ""
-                        pnl_t=(pnl_s+str(round(r["pnl_pct"],1))+"%") if r.get("price_ok") else "---"
+                        pnl_t=(pnl_s+str(round(r["pnl_pct"],1))+"%") if r.get("price_ok") else "⚙️"
                         with st.expander(r["name"]+"  現價"+str(r["price"])+"  "+pnl_t,expanded=False):
                             render_stock_card(r)
-    with tab2:
-        st.markdown('<div style="color:#8b949e;font-size:0.7rem;margin-bottom:6px;">技術評分排序（排除ETF）</div>',unsafe_allow_html=True)
-        with st.spinner("掃描中..."): picks=get_recommendations()
-        if picks:
-            for p in picks: render_pick_card(p)
-        else: st.info("目前無符合條件標的")
 
 if __name__ == "__main__":
     main()
