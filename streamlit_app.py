@@ -352,6 +352,8 @@ def render_stock_card(r):
     name=r["name"]; price=r["price"]; cost=r["cost"]; shares=r["shares"]
     pnl_pct=r["pnl_pct"]; pnl_amt=r["pnl_amt"]; ind=r["ind"]; sc=r["score"]
     ticker=r.get("ticker",""); price_ok=r.get("price_ok",False); is_etf=r.get("is_etf",False)
+    pnl_color="#3fb950" if pnl_pct>=0 else "#f85149"
+    pnl_sign="+" if pnl_pct>=0 else ""
     cl=classify(r)
     badge_map={"stop":("bg-stop","🔴 停損/出場"),"reduce":("bg-reduce","🟠 反彈減碼"),"watch":("bg-watch","⚠️ 觀望等待"),"strong":("bg-strong","💎 強勢續抱"),"add":("bg-add","➕ 條件加碼"),"etf":("bg-etf","💚 ETF長期持有"),"nodata":("bg-nodata","⚙️ 資料不足")}
     badge_cls,badge_txt=badge_map.get(cl,("bg-watch","⚠️ 觀望等待"))
