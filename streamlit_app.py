@@ -686,17 +686,17 @@ def main():
             profit_l=[r for r in results if classify(r)=="profit"]
             # Build tab list - only show tabs with items (hide (0) tabs), always show ETF and nodata if>0
             _all_groups=[
-                ("U0001f4b0 獲利出場",profit_l),
-                ("U0001f534 停損",stop_l),
-                ("U0001f7e0 減碼",reduce_l),
+                ("💰 獲利出場",profit_l),
+                ("🔴 停損",stop_l),
+                ("🟠 減碼",reduce_l),
                 ("⚠️ 觀望",watch_l),
-                ("U0001f48e 續抱",strong_l),
+                ("💎 續抱",strong_l),
                 ("➕ 加碼",add_l),
-                ("U0001f49a ETF",etf_l),
+                ("💚 ETF",etf_l),
                 ("❌ 評估失敗",nodata_l),
             ]
             _visible=[(lbl+"("+str(len(grp))+")",grp) for lbl,grp in _all_groups if len(grp)>0]
-            if not _visible: _visible=[("U0001f4b0 獲利出場(0)",[]),("U0001f48e 續抱(0)",[])]
+            if not _visible: _visible=[("💰 獲利出場(0)",[]),("💎 續抱(0)",[])]
             _tab_labels=[v[0] for v in _visible]; _tab_groups=[v[1] for v in _visible]
             tabs=st.tabs(_tab_labels)
             for ti,(tab,group) in enumerate(zip(tabs,_tab_groups)):
