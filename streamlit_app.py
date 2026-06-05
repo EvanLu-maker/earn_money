@@ -401,8 +401,44 @@ def generate_market_headline(mkt, holdings_names=[]):
     focus_map={"鴻海":"鴻海看300","緯創":"緯創看176","台積電":"台積電跟ADR","欣興":"欣興守970","金像電":"金像電只觀察","群創":"群創反彈先處理","台達電":"台達電看大盤"}
     focus=[focus_map[n] for n in holdings_names if n in focus_map]
     return headline, "；".join(focus[:3])
+def calc_entry_price(ind, name):
+    price = ind.get("price", 0)
+    ma20 = ind.get("ma20", 0)
+    atr = ind.get("atr", 0)
+    rsi = ind.get("rsi", 50)
+    above_ma = ind.get("above_ma20", False)
+    bearish = ind.get("bearish_day", False)
+    open_p = ind.get("open_price", price)
+    # Support zone = MA20 or price - 0.5*ATR, whichever is higher
+    support = round(max(ma20 * 0.995, price - atr * 0.5), 1) if atr > 0 and ma20 > 0 else round(price * 0.985, 1)
+    # Entry condition: now / pullback / limit
+    if above_ma and not bearish and rsi < 70:
+        condition = "now"   # Can enter at market price now
+        entry_low = round(price * 0.995, 1)
+        entry_high = round(price * 1.005, 1)
+        entry_msg = "現價附近可分批進場"
+    elif above_ma and (bearish or rsi >= 70):
+        condition = "pullback"  # Wait for pullback
+        entry_low = support
+        entry_high = round(price * 0.99, 1)
+        entry_msg = "等回測支撐 " + str(support) + " 再進"
+    elif not above_ma and rsi < 40:
+        condition = "limit"   # Limit order near MA20
+        entry_low = round(ma20 * 0.995, 1)
+        entry_high = round(ma20 * 1.005, 1)
+        entry_msg = "掛 MA20 附近 " + str(round(ma20, 1)) + " 限價"
+    else:
+        condition = "wait"   # Not ready yet
+        entry_low = support
+        entry_high = round(ma20 * 1.01, 1) if ma20 > 0 else round(price * 1.01, 1)
+        entry_msg = "觀察站上 " + str(round(ma20, 1)) + " 再考慮"
+    stop = round(support * 0.97, 1)
+    risk_pct = round((price - stop) / price * 100, 1) if price > 0 else 0
+    return {"condition": condition, "entry_low": entry_low, "entry_high": entry_high,
+            "entry_msg": entry_msg, "support": support, "stop": stop, "risk_pct": risk_pct}
+
 def get_recommendations(mkt=None):
-    # Market weakness filter: if TWI drops > 1%, no buy signal, show as watch only
+    # Market weakness filter
     mkt_weak = False
     if mkt:
         tw_chg = mkt.get("台指",{}).get("change_pct",0)
@@ -421,21 +457,27 @@ def get_recommendations(mkt=None):
         is_growth = name in GROWTH_STOCKS
         bearish = ind.get("bearish_day",False)
         above_ma = ind.get("above_ma20",False)
-        # Bearish day (open > close today) deducts 1 point for buy consideration
-        buy_sc = sc - (1 if bearish else 0)
+        rsi = ind.get("rsi",50)
+        # Score: deduct 1 if bearish day, deduct 1 if mkt_weak
+        buy_sc = sc - (1 if bearish else 0) - (1 if mkt_weak and not is_def else 0)
+        ep = calc_entry_price(ind, name)
         entry = {"name":name,"ticker":ticker,"ind":ind,"score":sc,"buy_score":buy_sc,
-                 "is_def":is_def,"is_growth":is_growth,"bearish":bearish,"mkt_weak":mkt_weak}
+                 "is_def":is_def,"is_growth":is_growth,"bearish":bearish,"mkt_weak":mkt_weak,
+                 "ep":ep}
         if is_def:
             if sc>=2: def_picks.append(entry)
-        elif mkt_weak or bearish or not above_ma:
-            if sc>=3: watch_picks.append(entry)
         else:
-            if buy_sc>=3: buy_picks.append(entry)
-            elif sc>=2: watch_picks.append(entry)
-    buy_picks.sort(key=lambda x:-x["buy_score"])
+            # Buy: condition is now/pullback AND buy_sc>=2 (lowered from 3)
+            if ep["condition"] in ("now","pullback") and buy_sc>=2:
+                buy_picks.append(entry)
+            # Watch: condition wait/limit OR buy_sc==1
+            elif sc>=2:
+                watch_picks.append(entry)
+    buy_picks.sort(key=lambda x:(-x["buy_score"], x["ep"]["condition"]!="now"))
     watch_picks.sort(key=lambda x:-x["score"])
     def_picks.sort(key=lambda x:-x["score"])
-    return buy_picks[:5], watch_picks[:5], def_picks[:3]
+    return buy_picks[:6], watch_picks[:4], def_picks[:3]
+
 def show_kline(ticker,height=260):
     df=fetch_stock(ticker)
     if df is not None and len(df)>5:
@@ -451,40 +493,65 @@ def prow(items):
         st.markdown('<div style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:8px 12px;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center;"><span style="color:#8b949e;font-size:0.78rem;">'+str(lbl)+'</span><span style="color:'+str(color)+';font-size:1rem;font-weight:700;">'+str(val)+'</span></div>',unsafe_allow_html=True)
 def render_pick_card(p):
     ind=p["ind"]; sc=p["score"]; name=p["name"]; ticker=p["ticker"]
-    price=ind.get("price",0); entry=round(ind.get("ma20",price)*0.99,1)
+    price=ind.get("price",0); ma20=ind.get("ma20",price)
     inst_val=ind.get("inst",0)
     inst_txt=("法人買超 "+str(inst_val)+"億") if inst_val>0 else ("法人小幅參與 "+str(abs(inst_val))+"億")
     bearish=p.get("bearish",False); mkt_weak=p.get("mkt_weak",False)
     is_def=p.get("is_def",False); is_growth=p.get("is_growth",False)
     buy_sc=p.get("buy_score",sc)
-    # Type badge and action label
-    if is_def:
-        type_label="🛡️ 防禦/穩定"; type_color="#6e7681"; action="觀察配置"
-        reason="防禦型：高配息穩定，非短線攻擊標的"
-    elif mkt_weak and not is_def:
-        type_label="⚠️ 盤勢轉弱"; type_color="#e3b341"; action="僅觀察，不追價"
-        reason="大盤走弱，即便技術分高，今日先觀察支撐，不追進"
-    elif bearish:
-        type_label="🟠 盤中轉弱"; type_color="#f0883e"; action="等止跌確認"
-        reason="今日開高走低（賣壓重），扣1分，等收盤確認止跌後再評估"
+    ep=p.get("ep",{})
+    condition=ep.get("condition","wait")
+    entry_low=ep.get("entry_low",round(price*0.99,1))
+    entry_high=ep.get("entry_high",round(price*1.01,1))
+    entry_msg=ep.get("entry_msg","觀察中")
+    stop=ep.get("stop",round(price*0.95,1))
+    risk_pct=ep.get("risk_pct",5.0)
+    # Entry badge color & label
+    if condition=="now":
+        entry_color="#3fb950"; entry_label="✅ 今日可入手"
+    elif condition=="pullback":
+        entry_color="#79c0ff"; entry_label="🔵 等回測入場"
+    elif condition=="limit":
+        entry_color="#e3b341"; entry_label="🟡 限價掛單"
     else:
-        type_label="✅ 買進候選"; type_color="#3fb950"; action="可考慮分批進場"
-        reason="技術面偏多，站上MA20，法人/KD/MACD同向"
+        entry_color="#8b949e"; entry_label="⏳ 尚未就緒"
+    # Stock type label
+    if is_def:
+        type_label="🛡️ 防禦"; type_color="#6e7681"
+    elif mkt_weak:
+        type_label="⚠️ 盤弱"; type_color="#e3b341"
+    elif bearish:
+        type_label="🟠 今日轉弱"; type_color="#f0883e"
+    else:
+        type_label="✅ 技術偏多"; type_color="#3fb950"
+    # Signals
     signals=[]
-    if ind.get("above_ma20"): signals.append("✅MA20")
-    if ind.get("macd_cross"): signals.append("📈MACD")
-    if ind.get("k",50)<80 and ind.get("k",50)>ind.get("d",50): signals.append("🔁KD")
-    if inst_val>0: signals.append("🏦法人")
-    if bearish: signals.append("🔻開高走低")
-    sig_str=" ".join(signals) if signals else "—"
-    prow([("現價",str(price),"#e6edf3"),("評分",str(sc)+" → 買"+str(buy_sc) if bearish else "分數 +"+str(sc),"#79c0ff")])
-    prow([("參考入手",str(entry),"#3fb950"),("法人",inst_txt,"#8b949e")])
-    st.markdown('<div style="background:#21262d;border-left:3px solid '+type_color+';padding:6px 10px;border-radius:4px;margin:4px 0;">'
-        +'<span style="color:'+type_color+';font-weight:700;font-size:0.8rem;">'+type_label+'</span>'
-        +' <span style="color:#8b949e;font-size:0.75rem;">'+action+'</span><br>'
-        +'<span style="color:#c9d1d9;font-size:0.72rem;">'+reason+'</span><br>'
-        +'<span style="color:#8b949e;font-size:0.7rem;">'+sig_str+'</span>'
-        +'</div>',unsafe_allow_html=True)
+    if ind.get("above_ma20"): signals.append("MA20✅")
+    if ind.get("macd_cross"): signals.append("MACD📈")
+    if ind.get("k",50)<80 and ind.get("k",50)>ind.get("d",50): signals.append("KD🔁")
+    if inst_val>0: signals.append("法人🏦")
+    if bearish: signals.append("開高走低🔻")
+    sig_str=" | ".join(signals) if signals else "—"
+    # === RENDER ===
+    # 1. Entry price box (most prominent)
+    st.markdown(
+        '<div style="background:#0d1f12;border:1px solid '+entry_color+';border-radius:8px;padding:8px 12px;margin:4px 0;">'
+        +'<div style="display:flex;justify-content:space-between;align-items:center;">'
+        +'<span style="color:'+entry_color+';font-weight:700;font-size:0.88rem;">'+entry_label+'</span>'
+        +'<span style="color:#8b949e;font-size:0.72rem;">評分 '+str(buy_sc)+'/5 &nbsp;'+type_label+'</span>'
+        +'</div>'
+        +'<div style="margin-top:5px;display:flex;gap:8px;flex-wrap:wrap;">'
+        +'<span style="background:#21262d;border-radius:5px;padding:3px 8px;font-size:0.78rem;color:#e6edf3;">📍 入場區間 <b style=\"color:'+entry_color+'\">'+str(entry_low)+'－'+str(entry_high)+'</b></span>'
+        +'<span style="background:#21262d;border-radius:5px;padding:3px 8px;font-size:0.78rem;color:#f85149;">🛑 停損 <b>'+str(stop)+'</b> (-'+str(risk_pct)+'%)</span>'
+        +'</div>'
+        +'<div style="margin-top:4px;font-size:0.78rem;color:#c9d1d9;">'+entry_msg+'</div>'
+        +'</div>',
+        unsafe_allow_html=True)
+    # 2. Price / MA20 row
+    prow([("現價",str(price),"#e6edf3"),("20MA",str(round(ma20,1)),"#8b949e")])
+    # 3. Signals
+    st.markdown('<div style="font-size:0.7rem;color:#8b949e;padding:2px 0;">'+sig_str+'&nbsp;&nbsp;'+inst_txt+'</div>',unsafe_allow_html=True)
+    # 4. K-line / AI buttons
     ai_key="ai_pick_"+ticker
     c1,c2=st.columns(2)
     with c1:
@@ -493,7 +560,12 @@ def render_pick_card(p):
     with c2:
         if st.button("🤖 AI分析",key="ap_"+ticker):
             with st.spinner("分析中..."):
-                prompt=("[推薦股] "+name+"("+ticker+") | 現價"+str(price)+" | RSI"+str(round(ind.get("rsi",0),0))+" MACD"+str(round(ind.get("macd",0),2))+" K"+str(round(ind.get("k",0),0))+" 20MA"+str(round(ind.get("ma20",0),0))+" | "+inst_txt+" | 盤中:"+("開高走低" if bearish else "正常")+"\n你是台股分析師，數據已給你，禁止重複報價，今天日期是 "+str(datetime.date.today())+"，繁體中文，請完整輸出，每個段落獨立換行：\n【結論】一句話說明操作建議（買進/觀察/防禦）\n【走勢】技術面偏多或偏空，關鍵支撐壓力\n【理由】進場依據或等待條件\n【新聞】只引用近3個月內真實新聞，寫明月份，嚴禁捏造")
+                prompt=("[推薦股] "+name+"("+ticker+") | 現價"+str(price)+" | RSI"+str(round(ind.get("rsi",0),0))+" MACD"+str(round(ind.get("macd",0),2))+" K"+str(round(ind.get("k",0),0))+" 20MA"+str(round(ma20,0))+" | "+inst_txt+" | 盤中:"+("開高走低" if bearish else "正常")+"
+你是台股分析師，數據已給你，禁止重複報價，今天日期是 "+str(datetime.date.today())+"，繁體中文，請完整輸出，每個段落獨立換行：
+【結論】一句話說明操作建議（買進/觀察/防禦）
+【走勢】技術面偏多或偏空，關鍵支撐壓力
+【理由】進場依據或等待條件
+【新聞】只引用近3個月內真實新聞，寫明月份，嚴禁捏造")
                 st.session_state[ai_key]=call_ai(prompt)
     if st.session_state.get("skp_"+ticker): show_kline(ticker)
     if ai_key in st.session_state:
@@ -512,6 +584,7 @@ def render_pick_card(p):
                 elif part.strip():
                     html+='<div style="border-left:2px solid '+cur_color+';padding-left:8px;margin-bottom:4px;color:#c9d1d9;font-size:0.82rem;">'+part.strip()+'</div>'
             st.markdown(html,unsafe_allow_html=True)
+
 def render_stock_card(r):
     name=r["name"]; price=r["price"]; cost=r["cost"]; shares=r["shares"]
     pnl_pct=r["pnl_pct"]; pnl_amt=r["pnl_amt"]; ind=r["ind"]; sc=r["score"]
@@ -718,12 +791,12 @@ def main():
             st.info("目前無符合條件推薦股（評分≥2）")
         else:
             if buy_picks:
-                st.markdown('<div style="color:#3fb950;font-weight:700;font-size:0.85rem;margin:4px 0;">✅ 買進候選</div>',unsafe_allow_html=True)
+                st.markdown('<div style="color:#3fb950;font-weight:700;font-size:0.85rem;margin:4px 0;">✅ 今日可入手／等回測</div>',unsafe_allow_html=True)
                 for p in buy_picks:
                     with st.expander(p["name"]+"  "+p["ticker"]+"  +"+str(p["buy_score"])+"分",expanded=False):
                         render_pick_card(p)
             if watch_picks:
-                st.markdown('<div style="color:#e3b341;font-weight:700;font-size:0.85rem;margin:4px 0;">⚠️ 觀察/等確認</div>',unsafe_allow_html=True)
+                st.markdown('<div style="color:#e3b341;font-weight:700;font-size:0.85rem;margin:4px 0;">⏳ 尚未就緒／技術待確認</div>',unsafe_allow_html=True)
                 for p in watch_picks:
                     with st.expander(p["name"]+"  "+p["ticker"]+"  +"+str(p["score"])+"分",expanded=False):
                         render_pick_card(p)
