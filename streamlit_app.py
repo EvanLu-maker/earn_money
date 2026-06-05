@@ -560,12 +560,7 @@ def render_pick_card(p):
     with c2:
         if st.button("🤖 AI分析",key="ap_"+ticker):
             with st.spinner("分析中..."):
-                prompt=("[推薦股] "+name+"("+ticker+") | 現價"+str(price)+" | RSI"+str(round(ind.get("rsi",0),0))+" MACD"+str(round(ind.get("macd",0),2))+" K"+str(round(ind.get("k",0),0))+" 20MA"+str(round(ma20,0))+" | "+inst_txt+" | 盤中:"+("開高走低" if bearish else "正常")+"
-你是台股分析師，數據已給你，禁止重複報價，今天日期是 "+str(datetime.date.today())+"，繁體中文，請完整輸出，每個段落獨立換行：
-【結論】一句話說明操作建議（買進/觀察/防禦）
-【走勢】技術面偏多或偏空，關鍵支撐壓力
-【理由】進場依據或等待條件
-【新聞】只引用近3個月內真實新聞，寫明月份，嚴禁捏造")
+                prompt=("[推薦股] "+name+"("+ticker+") | 現價"+str(price)+" | RSI"+str(round(ind.get("rsi",0),0))+" MACD"+str(round(ind.get("macd",0),2))+" K"+str(round(ind.get("k",0),0))+" 20MA"+str(round(ma20,0))+" | "+inst_txt+" | 盤中:"+("開高走低" if bearish else "正常")+" 你是台股分析師，數據已給你，禁止重複報價，今天日期是 "+str(datetime.date.today())+"，繁體中文，每個段落獨立，請輸出：【結論】一句話操作建議 【走勢】技術面偏多或偏空關鍵支撐壓力 【理由】進場依據或等待條件 【新聞】只引用近3個月內真實新聞寫明月份嚴禁捏造")
                 st.session_state[ai_key]=call_ai(prompt)
     if st.session_state.get("skp_"+ticker): show_kline(ticker)
     if ai_key in st.session_state:
