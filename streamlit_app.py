@@ -21,8 +21,8 @@ button[kind="header"]{display:none!important;}
 [data-testid="collapsedControl"]{display:none!important;}
 .stApp{background:#0d1117;}
 .block-container{padding:0.5rem 0.6rem 4rem!important;max-width:100%!important;}
-.hero-box{background:linear-gradient(135deg,#1a1f2e,#0f3460);border:1px solid #30363d;border-radius:10px;padding:10px 14px;margin-bottom:8px;}
-.hero-title{font-size:1.1rem;font-weight:800;color:#e6edf3;margin:0;}
+.hero-box{background:linear-gradient(135deg,#1a1f2e,#0f3460);border:1px solid #30363d;border-radius:8px;padding:6px 12px;margin-bottom:4px;}
+.hero-title{font-size:0.95rem;font-weight:800;color:#e6edf3;margin:0;}
 .hero-sub{color:#8b949e;font-size:0.68rem;margin-top:2px;}
 div[data-testid="stTabs"]>div:first-child button{font-size:0.85rem!important;font-weight:700!important;padding:7px 10px!important;}
 div[data-testid="stExpander"]>details{background:#161b22!important;border:1px solid #30363d!important;border-radius:10px!important;margin-bottom:6px!important;}
@@ -509,14 +509,14 @@ def main():
     tw_c=mkt.get("台指",{}).get("change_pct",0); nas_c=mkt.get("納指",{}).get("change_pct",0); tsm_c=mkt.get("TSM",{}).get("change_pct",0)
     def _mc(v): return ("#3fb950" if v>=0 else "#f85149")
     def _ms(v): return ("+" if v>=0 else "")+str(v)+"%"
-    st.markdown('<div style="display:flex;gap:10px;padding:4px 0;font-size:0.72rem;flex-wrap:wrap;">'
+    st.markdown('<div style="display:flex;gap:8px;padding:2px 0 4px 0;font-size:0.72rem;flex-wrap:wrap;">'
         +'<span style="color:#8b949e;">台指</span><span style="color:'+_mc(tw_c)+';">'+str(int(mkt.get("台指",{}).get("price",0)))+' '+_ms(tw_c)+'</span>'
         +'<span style="color:#8b949e;">｜納指</span><span style="color:'+_mc(nas_c)+';">'+str(int(mkt.get("納指",{}).get("price",0)))+' '+_ms(nas_c)+'</span>'
         +'<span style="color:#8b949e;">｜TSM ADR</span><span style="color:'+_mc(tsm_c)+';">'+str(round(mkt.get("TSM",{}).get("price",0),1))+' '+_ms(tsm_c)+'</span>'
         +'</div>',unsafe_allow_html=True)
-    # All-in-one tab bar: 匯入 | 持有股 | 推薦
-    # CSV upload - always visible above tabs
-    with st.expander("⬆️ 匯入持股 CSV", expanded=(not portfolio)):
+    # All-in-one tab bar: 匯入 | 持有股 | 推薦 (同一行)
+    tab0,tab1,tab2=st.tabs(["⬆️ 匯入","📁 持有股("+str(len(portfolio))+"筆)","⭐ 推薦"])
+    with tab0:
         st.caption("券商匯出 CSV | 只讀名稱/股數/成交均價 | 市價即時抓")
         uploaded=st.file_uploader("上傳持股CSV",type=["csv","txt"],label_visibility="collapsed",key="csv_upload")
         if uploaded:
@@ -524,9 +524,8 @@ def main():
             if stocks:
                 st.session_state["portfolio"]=stocks
                 portfolio=stocks
-                st.caption("✅ 已載入 "+str(len(stocks))+" 筆持股："+", ".join([s["name"] for s in stocks]))
+                st.success("✅ 已載入 "+str(len(stocks))+" 筆持股："+", ".join([s["name"] for s in stocks]))
             else: st.error("❌ 解析失敗，請確認格式：名稱,股數,,,成本")
-    tab1,tab2=st.tabs(["📁 持有股("+str(len(portfolio))+"筆)","⭐ 推薦"])
     with tab1:
         if not portfolio: st.info("請先匯入持股 CSV")
         else:
