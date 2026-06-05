@@ -239,30 +239,12 @@ def generate_daily_brief(mkt, us, portfolio):
     sp=us.get("SPY",{}).get("change_pct",0); qq=us.get("QQQ",{}).get("change_pct",0)
     dj=us.get("DJI",{}).get("change_pct",0); nv=us.get("NVDA",{}).get("change_pct",0)
     am=us.get("AMD",{}).get("change_pct",0); sm=us.get("SMH",{}).get("change_pct",0)
-    tsm=us.get("TSM_US",{}).get("change_pct",0); tw=mkt.get("台指",{}).get("change_pct",0)
-    holdings=[s["name"] for s in portfolio]; holdings_str=", ".join(holdings) if holdings else "尚未匯入持股"
-    sp_s=("+"+str(sp) if sp>=0 else str(sp))+"%"; qq_s=("+"+str(qq) if qq>=0 else str(qq))+"%"
-    dj_s=("+"+str(dj) if dj>=0 else str(dj))+"%"; nv_s=("+"+str(nv) if nv>=0 else str(nv))+"%"
-    am_s=("+"+str(am) if am>=0 else str(am))+"%"; sm_s=("+"+str(sm) if sm>=0 else str(sm))+"%"
-    tsm_s=("+"+str(tsm) if tsm>=0 else str(tsm))+"%"
+    tsm=us.get("TSM_US",{}).get("change_pct",0)
+    holdings=[s["name"] for s in portfolio]; hs=", ".join(holdings) if holdings else "尚未匯入持股"
+    def s(v): return ("+"+str(v) if v>=0 else str(v))+"%"
     today=datetime.date.today().strftime("%m/%d")
-    prompt=(today+" 盤前分析：你是台股操盤手，請用繁體中文寫3-5句簡短有力的今日盤前總結。
-
-"
-        +"昨夜美股收盤：S&P500 "+sp_s+" 道瓊 "+dj_s+" QQQ "+qq_s+" NVDA "+nv_s+" AMD "+am_s+" SMH "+sm_s+" TSM ADR "+tsm_s+"
-
-"
-        +"台指昨日："+(("+"+str(tw)) if tw>=0 else str(tw))+"%
-
-"
-        +"用戶持有股："+holdings_str+"
-
-"
-        +"請依序：1)一句話定調今日盤勢；2)點出哪個美股數據最影響台股持股；3)今日操作主軸，直接點名持股怎麼做。
-"
-        +"風格：像老手操盤手說話，直接有觀點，禁止免責聲明和廢話。")
+    prompt=today+" 盤前：S&P500 "+s(sp)+" 道瓊 "+s(dj)+" QQQ "+s(qq)+" NVDA "+s(nv)+" AMD "+s(am)+" SMH "+s(sm)+" TSM ADR "+s(tsm)+" 台指昨日 "+s(mkt.get("台指",{}).get("change_pct",0))+" 持股："+hs+" 。請用繁體中文寫3-5句盤前操作總結，直接定調今日盤勢偏多偏空，點出哪個數據最影響持股，給出今日操作主軸（直接點名持股怎麼做），風格像老手操盤手，禁止免責聲明和廢話。"
     return call_ai(prompt)
-
 def parse_csv(f):
     try: content=f.read().decode("utf-8-sig")
     except: content=f.read().decode("big5",errors="ignore")
