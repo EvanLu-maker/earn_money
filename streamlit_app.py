@@ -113,7 +113,7 @@ NAME_TO_TICKER = {
     "廣達":"2382.TW","緯創":"3231.TW","和碩":"4938.TW","仁寶":"2324.TW",
     "華碩":"2357.TW","宏碁":"2353.TW","聯電":"2303.TW","日月光投控":"3711.TW",
     "瑞昱":"2379.TW","聯詠":"3034.TW","矽力-KY":"6415.TW","祥碩":"5269.TW",
-    "群聯":"8299.TW","智原":"3035.TW","創意":"3443.TW","新應材":"6643.TW",
+    "群聯":"8299.TW","智原":"3035.TW","創意":"3443.TW","新應材":"4749.TW",
     "玉晶光":"3406.TW","大立光":"3008.TW","嘉澤":"3533.TW","信驊":"5274.TW",
     "神盾":"6462.TW","力旺":"3529.TW","金像電":"2368.TW","欣興":"3037.TW",
     "奇鋐":"3017.TW","雙鴻":"3324.TW","建準":"2421.TW","超眾":"6230.TW",
@@ -125,11 +125,11 @@ NAME_TO_TICKER = {
     "可成":"2474.TW","巨大":"9921.TW","正新":"2105.TW","世芯-KY":"3661.TW",
     "力積電":"6770.TW","南亞科":"2408.TW","華邦電":"2344.TW","旺宏":"2337.TW",
     "緯穎":"6669.TW","英業達":"2356.TW","技嘉":"2376.TW","微星":"2377.TW","健鼎":"3044.TW",
-    "主動統一升級50":"00957.TW","元大高股息":"0056.TW","國泰永續高股息":"00878.TW",
+    "主動統一升級50":"00403A.TW","元大高股息":"0056.TW","國泰永續高股息":"00878.TW",
     "群益台灣精選高息":"00919.TW","元大台灣50":"0050.TW","富邦台50":"006208.TW",
     "永豐台灣ESG":"00888.TW","中信關鍵半導體":"00891.TW",
 }
-ETF_LIST = {"00957.TW","0056.TW","00878.TW","00919.TW","0050.TW","006208.TW","00888.TW","00891.TW"}
+ETF_LIST = {"00403A.TW","0056.TW","00878.TW","00919.TW","0050.TW","006208.TW","00888.TW","00891.TW"}
 SECTOR_GROUPS={"AI半導體":["台積電","聯發科","日月光投控","矽力-KY","世界","聯電","力積電","群聯","瑞昱"],"PCB電路板":["欣興","金像電","臻鼎-KY","健鼎","耀華","台光電","南電","燿華"],"面板顯示":["群創","友達","彩晶"],"電源管理":["台達電","光寶科"],"組裝代工":["鴻海","廣達","緯創","英業達","仁寶","和碩"]}
 NON_CORE=["群創","友達","金像電","欣興","彩晶"]
 DEFENSIVE_STOCKS={"中華電","遠傳","台灣大","中鋼","台塑化","台塑","南亞","長榮","陽明","萬海"}
@@ -148,20 +148,22 @@ RECOMMEND_POOL = [
 
 def get_ticker(name):
     name=name.strip()
+    # 1. Exact match
     if name in NAME_TO_TICKER: return NAME_TO_TICKER[name]
-    # Try number-based: if name contains 4+ digit number, try as TW ticker
-    import re as _re
-    m=_re.search(r'(\d{4,6})',name)
-    if m:
-        candidate=m.group(1)+".TW"
-        return candidate
-    # Fuzzy: key contains name or name contains key (longer match preferred)
+    # 2. Fuzzy: prefer longer key match to avoid false positives
     best=None; best_len=0
     for k,v in NAME_TO_TICKER.items():
-        if k==name: return v
         if k in name or name in k:
             if len(k)>best_len: best=v; best_len=len(k)
-    return best
+    if best: return best
+    # 3. Last resort: pure number in name → try as TW ticker (only if 4-6 digits standalone)
+    import re as _re
+    m=_re.search(r'(?<![\d])([0-9]{4,6}[A-Z]?)(?![\d])',name)
+    if m:
+        num=m.group(1)
+        candidate=num+(".TW" if not num.endswith(".TW") else "")
+        return candidate
+    return None
 
 @st.cache_data(ttl=300)
 def fetch_stock(ticker, period="3mo"):
