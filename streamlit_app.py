@@ -594,6 +594,34 @@ def main():
     ai_label={"claude":"● Claude","openai":"● OpenAI","gemini":"● Gemini"}.get(provider,"需設定AI Key")
     now_str=datetime.datetime.now().strftime("%Y/%m/%d %H:%M")
     mkt=get_market_data()
+    # Swipe gesture: left/right swipe to switch tabs
+    st.components.v1.html("""<script>
+(function(){
+  var sx=0,sy=0,startEl=null;
+  document.addEventListener('touchstart',function(e){
+    var t=e.touches[0];sx=t.clientX;sy=t.clientY;startEl=document.elementFromPoint(sx,sy);
+  },{passive:true});
+  document.addEventListener('touchend',function(e){
+    var t=e.changedTouches[0],dx=t.clientX-sx,dy=t.clientY-sy;
+    if(Math.abs(dx)<50||Math.abs(dx)<Math.abs(dy)*1.5)return;
+    // Find closest tab group to swipe start point
+    var allGroups=Array.from(document.querySelectorAll('[data-testid="stTabs"]'));
+    var best=null,bestDist=9999;
+    allGroups.forEach(function(g){
+      var r=g.getBoundingClientRect();
+      if(sy>=r.top&&sy<=r.bottom){var d=Math.abs((r.left+r.right)/2-sx);if(d<bestDist){bestDist=d;best=g;}}
+    });
+    var container=best||allGroups[allGroups.length-1];
+    if(!container)return;
+    var tabs=Array.from(container.querySelectorAll('button[role="tab"]'));
+    if(!tabs.length)return;
+    var active=tabs.findIndex(function(b){return b.getAttribute('aria-selected')==='true';});
+    if(active<0)active=0;
+    var next=dx<0?Math.min(active+1,tabs.length-1):Math.max(active-1,0);
+    if(next!==active)tabs[next].click();
+  },{passive:true});
+})();
+</script>""",height=0)
     portfolio=st.session_state.get("portfolio",[])
     holdings_names=[s["name"] for s in portfolio]
     headline, focus_str = generate_market_headline(mkt, holdings_names)
@@ -656,10 +684,25 @@ def main():
             etf_l=[r for r in results if classify(r)=="etf"]
             nodata_l=[r for r in results if classify(r)=="nodata"]
             profit_l=[r for r in results if classify(r)=="profit"]
-            tabs=st.tabs(["\U0001f4b0 \u7372\u5229\u51fa\u5834("+str(len(profit_l))+")","\U0001f534 \u505c\u640d("+str(len(stop_l))+")","\U0001f7e0 \u6e1b\u78bc("+str(len(reduce_l))+")","\u26a0\ufe0f \u89c0\u671b("+str(len(watch_l))+")","\U0001f48e \u7e8c\u62b1("+str(len(strong_l))+")","\u2795 \u52a0\u78bc("+str(len(add_l))+")","\U0001f49a ETF("+str(len(etf_l))+")","\u274c \u8a55\u4f30\u5931\u6557("+str(len(nodata_l))+")"])
-            for ti,(tab,group) in enumerate(zip(tabs,[profit_l,stop_l,reduce_l,watch_l,strong_l,add_l,etf_l,nodata_l])):
+            # Build tab list - only show tabs with items (hide (0) tabs), always show ETF and nodata if>0
+            _all_groups=[
+                ("U0001f4b0 獲利出場",profit_l),
+                ("U0001f534 停損",stop_l),
+                ("U0001f7e0 減碼",reduce_l),
+                ("⚠️ 觀望",watch_l),
+                ("U0001f48e 續抱",strong_l),
+                ("➕ 加碼",add_l),
+                ("U0001f49a ETF",etf_l),
+                ("❌ 評估失敗",nodata_l),
+            ]
+            _visible=[(lbl+"("+str(len(grp))+")",grp) for lbl,grp in _all_groups if len(grp)>0]
+            if not _visible: _visible=[("U0001f4b0 獲利出場(0)",[]),("U0001f48e 續抱(0)",[])]
+            _tab_labels=[v[0] for v in _visible]; _tab_groups=[v[1] for v in _visible]
+            tabs=st.tabs(_tab_labels)
+            for ti,(tab,group) in enumerate(zip(tabs,_tab_groups)):
                 with tab:
-                    if ti==0 and profit_l:
+                    is_profit_tab=profit_l and group is profit_l
+                    if is_profit_tab:
                         st.markdown('<div style="background:#1a1500;border:1px solid #c9871f;border-radius:8px;padding:8px 12px;margin-bottom:6px;font-size:0.8rem;color:#d2a679;">📌 以下持股已達獲利了結條件：大幅獲利或技術轉弱，建議優先處理，設追蹤停利或分批出場。</div>',unsafe_allow_html=True)
                     if not group: st.caption("本區無持股")
                     for r in group:
