@@ -401,7 +401,7 @@ def render_pick_card(p):
         if st.button("🤖 AI分析",key="ap_"+ticker):
             with st.spinner("分析中..."):
                 prompt=("[推薦股] "+name+"("+ticker+") | 現價"+str(price)+" | RSI"+str(round(ind.get("rsi",0),0))+" MACD"+str(round(ind.get("macd",0),2))+" K"+str(round(ind.get("k",0),0))+" 20MA"+str(round(ind.get("ma20",0),0))+" | "+inst_txt+" | 盤中:"+("開高走低" if bearish else "正常")+"
-你是台股分析師，數據已給你，禁止重複報價，今天日期是`"+str(datetime.date.today())+"`，繁體中文，請完整輸出，每個段落獨立換行：
+你是台股分析師，數據已給你，禁止重複報價，今天日期是 "+str(datetime.date.today())+"，繁體中文，請完整輸出，每個段落獨立換行：
 【結論】一句話說明操作建議（買進/觀察/防禦）
 【走勢】技術面偏多或偏空，關鍵支撐壓力
 【理由】進場依據或等待條件
@@ -475,7 +475,7 @@ def render_stock_card(r):
                 rsi_v=str(ind.get("rsi","-")); macd_v=str(round(ind.get("macd",0),3))
                 k_v=str(ind.get("k","-")); d_v=str(ind.get("d","-")); ma_v=str(ind.get("ma20","-")); atr_v=str(round(ind.get("atr",0),2))
                 inst_disp=("法人買超"+str(round(inst,1))+"億") if inst>0 else "法人小幅參與"
-                prompt=("[持股] "+name+"("+str(ticker)+") | 現價"+str(price)+" 成本"+str(cost)+" 損益"+str(round(pnl_pct,1))+"% | RSI "+rsi_v+" K "+k_v+" | "+inst_disp+"\n你是台股分析師，數據已給你，禁止重複報價，今天日期是`"+str(datetime.date.today())+"`，繁體中文，請完整輸出，每個段落獨立換行：\n【結論】一句話說明現在操作建議\n【走勢】技術面偏多或偏空，關鍵支撐壓力\n【理由】為何適合或不適合現在操作\n【新聞】只引用近3個月內真實新聞，寫明月份，嚴禁捏造"+(" (ETF:配息/績效分析)" if is_etf else ""))
+                prompt=("[持股] "+name+"("+str(ticker)+") | 現價"+str(price)+" 成本"+str(cost)+" 損益"+str(round(pnl_pct,1))+"% | RSI "+rsi_v+" K "+k_v+" | "+inst_disp+"\n你是台股分析師，數據已給你，禁止重複報價，今天日期是 "+str(datetime.date.today())+"，繁體中文，請完整輸出，每個段落獨立換行：\n【結論】一句話說明現在操作建議\n【走勢】技術面偏多或偏空，關鍵支撐壓力\n【理由】為何適合或不適合現在操作\n【新聞】只引用近3個月內真實新聞，寫明月份，嚴禁捏造"+(" (ETF:配息/績效分析)" if is_etf else ""))
                 st.session_state[ai_key]=call_ai(prompt)
     if st.session_state.get(ai_key):
         with st.expander("🤖 AI分析（"+name+"）", expanded=True):
