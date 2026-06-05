@@ -509,19 +509,18 @@ def main():
         +'<span style="color:#8b949e;">｜TSM ADR</span><span style="color:'+_mc(tsm_c)+';">'+str(round(mkt.get("TSM",{}).get("price",0),1))+' '+_ms(tsm_c)+'</span>'
         +'</div>',unsafe_allow_html=True)
     # All-in-one tab bar: 匯入 | 持有股 | 推薦
-    tab0,tab1,tab2=st.tabs(["⬆️ 匯入","📁 持有股","⭐ 推薦"])
-    with tab0:
+    # CSV upload - always visible above tabs
+    with st.expander("⬆️ 匯入持股 CSV", expanded=(not portfolio)):
         st.caption("券商匯出 CSV | 只讀名稱/股數/成交均價 | 市價即時抓")
         uploaded=st.file_uploader("上傳持股CSV",type=["csv","txt"],label_visibility="collapsed",key="csv_upload")
         if uploaded:
             stocks=parse_csv(uploaded)
             if stocks:
-                st.caption("✅ 已載入 "+str(len(stocks))+" 筆持股")
                 st.session_state["portfolio"]=stocks
-                st.rerun()
-            else: st.error("❌ 解析失敗")
-        if portfolio:
-            st.caption("📋 目前持股："+", ".join([s["name"] for s in portfolio]))
+                portfolio=stocks
+                st.caption("✅ 已載入 "+str(len(stocks))+" 筆持股："+", ".join([s["name"] for s in stocks]))
+            else: st.error("❌ 解析失敗，請確認格式：名稱,股數,,,成本")
+    tab1,tab2=st.tabs(["📁 持有股("+str(len(portfolio))+"筆)","⭐ 推薦"])
     with tab1:
         if not portfolio: st.info("請先匯入持股 CSV")
         else:
