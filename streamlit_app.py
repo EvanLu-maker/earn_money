@@ -220,6 +220,49 @@ def get_market_data():
         except: res[name]={"price":0,"change_pct":0}
     return res
 
+@st.cache_data(ttl=3600)
+def get_us_overnight():
+    res={}
+    for name,t in {"SPY":"SPY","QQQ":"QQQ","DJI":"^DJI","NVDA":"NVDA","AMD":"AMD","SMH":"SMH","TSM_US":"TSM"}.items():
+        try:
+            df=yf.download(t,period="5d",interval="1d",progress=False,auto_adjust=True)
+            if df is None or df.empty: continue
+            if isinstance(df.columns,pd.MultiIndex): df.columns=df.columns.get_level_values(0)
+            if len(df)<2: continue
+            prev=float(df["Close"].iloc[-2]); last=float(df["Close"].iloc[-1])
+            chg=round((last-prev)/prev*100,2)
+            res[name]={"price":round(last,2),"change_pct":chg}
+        except: res[name]={"price":0,"change_pct":0}
+    return res
+
+def generate_daily_brief(mkt, us, portfolio):
+    sp=us.get("SPY",{}).get("change_pct",0); qq=us.get("QQQ",{}).get("change_pct",0)
+    dj=us.get("DJI",{}).get("change_pct",0); nv=us.get("NVDA",{}).get("change_pct",0)
+    am=us.get("AMD",{}).get("change_pct",0); sm=us.get("SMH",{}).get("change_pct",0)
+    tsm=us.get("TSM_US",{}).get("change_pct",0); tw=mkt.get("台指",{}).get("change_pct",0)
+    holdings=[s["name"] for s in portfolio]; holdings_str=", ".join(holdings) if holdings else "尚未匯入持股"
+    sp_s=("+"+str(sp) if sp>=0 else str(sp))+"%"; qq_s=("+"+str(qq) if qq>=0 else str(qq))+"%"
+    dj_s=("+"+str(dj) if dj>=0 else str(dj))+"%"; nv_s=("+"+str(nv) if nv>=0 else str(nv))+"%"
+    am_s=("+"+str(am) if am>=0 else str(am))+"%"; sm_s=("+"+str(sm) if sm>=0 else str(sm))+"%"
+    tsm_s=("+"+str(tsm) if tsm>=0 else str(tsm))+"%"
+    today=datetime.date.today().strftime("%m/%d")
+    prompt=(today+" 盤前分析：你是台股操盤手，請用繁體中文寫3-5句簡短有力的今日盤前總結。
+
+"
+        +"昨夜美股收盤：S&P500 "+sp_s+" 道瓊 "+dj_s+" QQQ "+qq_s+" NVDA "+nv_s+" AMD "+am_s+" SMH "+sm_s+" TSM ADR "+tsm_s+"
+
+"
+        +"台指昨日："+(("+"+str(tw)) if tw>=0 else str(tw))+"%
+
+"
+        +"用戶持有股："+holdings_str+"
+
+"
+        +"請依序：1)一句話定調今日盤勢；2)點出哪個美股數據最影響台股持股；3)今日操作主軸，直接點名持股怎麼做。
+"
+        +"風格：像老手操盤手說話，直接有觀點，禁止免責聲明和廢話。")
+    return call_ai(prompt)
+
 def parse_csv(f):
     try: content=f.read().decode("utf-8-sig")
     except: content=f.read().decode("big5",errors="ignore")
@@ -515,7 +558,8 @@ def main():
         +'<span style="color:#8b949e;">｜TSM ADR</span><span style="color:'+_mc(tsm_c)+';">'+str(round(mkt.get("TSM",{}).get("price",0),1))+' '+_ms(tsm_c)+'</span>'
         +'</div>',unsafe_allow_html=True)
     # All-in-one tab bar: 匯入 | 持有股 | 推薦 (同一行)
-    tab0,tab1,tab2=st.tabs(["⬆️ 匯入","📁 持有股("+str(len(portfolio))+"筆)","⭐ 推薦"])
+    n_port=len(st.session_state.get("portfolio",[]))
+    tab0,tab1,tab2=st.tabs(["⬆️ 匯入("+str(n_port)+"筆)" if n_port>0 else "⬆️ 匯入","📁 持有股","⭐ 推薦"])
     with tab0:
         st.caption("券商匯出 CSV | 只讀名稱/股數/成交均價 | 市價即時抓")
         uploaded=st.file_uploader("上傳持股CSV",type=["csv","txt"],label_visibility="collapsed",key="csv_upload")
@@ -526,6 +570,28 @@ def main():
                 portfolio=stocks
                 st.success("✅ 已載入 "+str(len(stocks))+" 筆持股："+", ".join([s["name"] for s in stocks]))
             else: st.error("❌ 解析失敗，請確認格式：名稱,股數,,,成本")
+        cur_port=st.session_state.get("portfolio",[])
+        if cur_port:
+            res_t0=analyze_portfolio(cur_port)
+            tpnl=sum(r["pnl_amt"] for r in res_t0 if r.get("price_ok"))
+            tcost=sum(r["cost"]*r["shares"] for r in res_t0 if r.get("price_ok"))
+            tpct=tpnl/tcost*100 if tcost>0 else 0
+            pc="#3fb950" if tpnl>=0 else "#f85149"
+            ps="+" if tpnl>=0 else ""; pp="+" if tpct>=0 else ""
+            st.markdown('<div style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:10px 14px;margin:6px 0;display:flex;justify-content:space-between;align-items:center;"><span style="color:#8b949e;font-size:0.8rem;">📊 持倉總損益（'+str(len(cur_port))+'筆）</span><span style="color:'+pc+';font-size:1.1rem;font-weight:800;">'+ps+str(int(tpnl))+'元 （'+pp+str(round(tpct,1))+'%）</span></div>',unsafe_allow_html=True)
+            bk="daily_brief"; dk="brief_date"; td=datetime.date.today().isoformat()
+            cb1,cb2=st.columns([3,1])
+            with cb1: st.markdown('<span style="color:#58a6ff;font-weight:700;font-size:0.85rem;">🌐 今日盤前AI總結</span>',unsafe_allow_html=True)
+            with cb2:
+                if st.button("🔄",key="ref_brief",help="重新生成"):
+                    for k in [bk,dk]: st.session_state.pop(k,None)
+            if bk not in st.session_state or st.session_state.get(dk)!=td:
+                with st.spinner("AI分析中..."):
+                    us=get_us_overnight()
+                    st.session_state[bk]=generate_daily_brief(mkt,us,cur_port)
+                    st.session_state[dk]=td
+            if st.session_state.get(bk):
+                st.markdown('<div style="background:linear-gradient(135deg,#0d1f2e,#0a1628);border:1px solid #1f6feb;border-radius:8px;padding:10px 14px;margin:4px 0;font-size:0.83rem;color:#c9d1d9;line-height:1.6;">'+str(st.session_state[bk]).replace("<","&lt;").replace(">","&gt;").replace("\n","<br>")+'</div>',unsafe_allow_html=True)
     with tab1:
         if not portfolio: st.info("請先匯入持股 CSV")
         else:
@@ -537,11 +603,6 @@ def main():
             add_l=[r for r in results if classify(r)=="add"]
             etf_l=[r for r in results if classify(r)=="etf"]
             nodata_l=[r for r in results if classify(r)=="nodata"]
-            total_pnl=sum(r["pnl_amt"] for r in results if r.get("price_ok"))
-            total_cost=sum(r["cost"]*r["shares"] for r in results if r.get("price_ok"))
-            total_pnl_pct=total_pnl/total_cost*100 if total_cost>0 else 0
-            pnl_col="#3fb950" if total_pnl>=0 else "#f85149"
-            prow([("總損益",(("+" if total_pnl>=0 else "")+str(int(total_pnl))+"元（"+("+" if total_pnl_pct>=0 else "")+str(round(total_pnl_pct,1))+"%）"),pnl_col)])
             tabs=st.tabs(["🔴 停損("+str(len(stop_l))+")","🟠 減碼("+str(len(reduce_l))+")","⚠️ 觀望("+str(len(watch_l))+")","💎 續抱("+str(len(strong_l))+")","➕ 加碼("+str(len(add_l))+")","💚 ETF("+str(len(etf_l))+")","❌ 評估失敗("+str(len(nodata_l))+")"])
             for ti,(tab,group) in enumerate(zip(tabs,[stop_l,reduce_l,watch_l,strong_l,add_l,etf_l,nodata_l])):
                 with tab:
