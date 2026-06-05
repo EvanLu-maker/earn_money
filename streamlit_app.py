@@ -147,10 +147,21 @@ RECOMMEND_POOL = [
 ]
 
 def get_ticker(name):
+    name=name.strip()
     if name in NAME_TO_TICKER: return NAME_TO_TICKER[name]
+    # Try number-based: if name contains 4+ digit number, try as TW ticker
+    import re as _re
+    m=_re.search(r'(\d{4,6})',name)
+    if m:
+        candidate=m.group(1)+".TW"
+        return candidate
+    # Fuzzy: key contains name or name contains key (longer match preferred)
+    best=None; best_len=0
     for k,v in NAME_TO_TICKER.items():
-        if k in name or name in k: return v
-    return None
+        if k==name: return v
+        if k in name or name in k:
+            if len(k)>best_len: best=v; best_len=len(k)
+    return best
 
 @st.cache_data(ttl=300)
 def fetch_stock(ticker, period="3mo"):
@@ -263,21 +274,23 @@ def parse_csv(f):
 def analyze_portfolio(stocks):
     results=[]
     for s in stocks:
-        ticker=get_ticker(s["name"]); ind={}; price=None
+        ticker=get_ticker(s["name"]); ind={}; price=None; fetched=False
         is_etf=ticker in ETF_LIST if ticker else False
         if ticker:
             price=get_current_price(ticker)
+            if price and price>0: fetched=True
             if not is_etf:
                 df=fetch_stock(ticker)
                 if df is not None and len(df)>=20:
                     ind=calc_indicators(df)
-                    if ind and "price" in ind: price=ind["price"]
+                    if ind and "price" in ind:
+                        price=ind["price"]; fetched=True
         if not price or price<=0: price=s["cost"]
         pnl_pct=(price-s["cost"])/s["cost"]*100 if s["cost"]>0 else 0
         pnl_amt=(price-s["cost"])*s["shares"]
         results.append({**s,"ticker":ticker,"price":price,"ind":ind,
                         "pnl_pct":pnl_pct,"pnl_amt":pnl_amt,"score":score_stock(ind),
-                        "is_etf":is_etf,"price_ok":(price!=s["cost"])})
+                        "is_etf":is_etf,"price_ok":fetched})
     # Compute position percentages
     total_val=sum(r["price"]*r["shares"] for r in results if r.get("price_ok"))
     for r in results:
@@ -464,10 +477,11 @@ def render_stock_card(r):
     if r.get("sector_heavy",False) and cl not in ("stop","nodata","etf"): badge_txt+=" ⚠️族群過重"
     if not price_ok:
         col_r1,col_r2=st.columns([3,1])
-        with col_r1: prow([("現價", "❌ 評估失敗", "#8b949e")])
+        no_reason="無法識別股票代碼" if not ticker else ("代碼:"+str(ticker)+" 抓取失敗")
+        with col_r1: prow([("現價", "❌ "+no_reason, "#8b949e")])
         with col_r2:
             if st.button("🔄",key="retry_"+name,help="重新抓取現價"):
-                new_p=get_current_price(ticker)
+                new_p=get_current_price(ticker) if ticker else None
                 if new_p and new_p>0:
                     r["price"]=new_p; r["price_ok"]=True
                     r["pnl_pct"]=(new_p-cost)/cost*100 if cost>0 else 0
