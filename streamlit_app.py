@@ -135,16 +135,63 @@ SECTOR_GROUPS={"AI半導體":["台積電","聯發科","日月光投控","矽力-
 NON_CORE=["群創","友達","金像電","欣興","彩晶"]
 DEFENSIVE_STOCKS={"中華電","遠傳","台灣大","中鋼","台塑化","台塑","南亞","長榮","陽明","萬海"}
 GROWTH_STOCKS={"台積電","聯發科","鴻海","廣達","緯創","台達電","技嘉","微星","緯穎","日月光投控","奇鋐","雙鴻","矽力-KY","祥碩","信驊","世芯-KY","聯詠","群聯","瑞昱"}
+# RECOMMEND_POOL: 台灣前150大市值，涵蓋各板塊，每週更新
+# 板塊: AI半導體/電子/金融/航運/傳產/鋼鐵/電信/面板/生技/食品/航太/房建
 RECOMMEND_POOL = [
-    ("台積電","2330.TW"),("聯發科","2454.TW"),("鴻海","2317.TW"),("台達電","2308.TW"),
-    ("廣達","2382.TW"),("緯創","3231.TW"),("日月光投控","3711.TW"),("聯詠","3034.TW"),
-    ("矽力-KY","6415.TWO"),("祥碩","5269.TWO"),("信驊","5274.TWO"),("神盾","6462.TWO"),
-    ("奇鋐","3017.TWO"),("雙鴻","3324.TWO"),("世芯-KY","3661.TWO"),("玉晶光","3406.TWO"),
-    ("大立光","3008.TW"),("欣興","3037.TW"),("金像電","2368.TW"),("健鼎","3044.TWO"),
-    ("長榮","2603.TW"),("陽明","2609.TW"),("台塑化","6505.TW"),("中鋼","2002.TW"),
+    # --- AI / 半導體 ---
+    ("台積電","2330.TW"),("聯發科","2454.TW"),("日月光投控","3711.TW"),("聯電","2303.TW"),
     ("力積電","6770.TW"),("南亞科","2408.TW"),("華邦電","2344.TW"),("旺宏","2337.TW"),
-    ("緯穎","6669.TW"),("技嘉","2376.TW"),("微星","2377.TW"),("英業達","2356.TW"),
-    ("群聯","8299.TW"),("瑞昱","2379.TW"),("遠傳","4904.TW"),("台灣大","3045.TW"),("中華電","2412.TW"),
+    ("矽力-KY","6415.TWO"),("祥碩","5269.TWO"),("信驊","5274.TWO"),("世芯-KY","3661.TWO"),
+    ("瑞昱","2379.TW"),("聯詠","3034.TW"),("群聯","8299.TW"),("智原","3035.TWO"),
+    ("創意","3443.TW"),("神盾","6462.TWO"),("力旺","3529.TWO"),("M31","6643.TW"),
+    # --- 伺服器 / AI 供應鏈 ---
+    ("鴻海","2317.TW"),("廣達","2382.TW"),("緯創","3231.TW"),("緯穎","6669.TW"),
+    ("英業達","2356.TW"),("仁寶","2324.TW"),("和碩","4938.TW"),("技嘉","2376.TW"),
+    ("微星","2377.TW"),("華碩","2357.TW"),("宏碁","2353.TW"),
+    # --- 電源/散熱 ---
+    ("台達電","2308.TW"),("光寶科","2301.TW"),("奇鋐","3017.TWO"),("雙鴻","3324.TWO"),
+    ("建準","2421.TWO"),("超眾","6230.TWO"),
+    # --- PCB / 載板 ---
+    ("欣興","3037.TW"),("金像電","2368.TW"),("健鼎","3044.TWO"),("嘉澤","3533.TWO"),
+    ("南電","8046.TW"),("臻鼎-KY","4958.TW"),("台光電","2383.TW"),
+    # --- 光學 / 鏡頭 ---
+    ("大立光","3008.TW"),("玉晶光","3406.TWO"),("先進光","3362.TW"),
+    # --- 面板 ---
+    ("群創","3481.TW"),("友達","2409.TW"),
+    # --- 記憶體模組 ---
+    ("威剛","3260.TW"),("宇瞻","8271.TW"),
+    # --- 金融 ---
+    ("台灣金控","2892.TW"),("國泰金","2882.TW"),("富邦金","2881.TW"),("中信金","2891.TW"),
+    ("兆豐金","2886.TW"),("第一金","2892.TW"),("玉山金","2884.TW"),("元大金","2885.TW"),
+    ("永豐金","2890.TW"),("合庫金","5880.TW"),("開發金","2883.TW"),("台新金","2887.TW"),
+    # --- 電信 ---
+    ("中華電","2412.TW"),("台灣大","3045.TW"),("遠傳","4904.TW"),
+    # --- 航運 ---
+    ("長榮","2603.TW"),("陽明","2609.TW"),("萬海","2615.TW"),("台驊投控","2636.TW"),
+    ("慧洋-KY","2637.TW"),("裕民","2606.TW"),
+    # --- 航空 ---
+    ("華航","2610.TW"),("長榮航空","2618.TW"),
+    # --- 石化 / 傳產 ---
+    ("台塑","1301.TW"),("南亞","1303.TW"),("台化","1326.TW"),("台塑化","6505.TW"),
+    ("奇美實業","3709.TW"),("大連","1303.TW"),
+    # --- 鋼鐵 ---
+    ("中鋼","2002.TW"),("豐興","2015.TW"),("東和鋼鐵","2006.TW"),("燁輝","2023.TW"),
+    # --- 汽車零件 ---
+    ("和泰車","2207.TW"),("裕隆","2201.TW"),("東陽","1319.TW"),
+    # --- 自行車 ---
+    ("巨大","9921.TW"),("美利達","9914.TW"),
+    # --- 食品飲料 ---
+    ("統一","1216.TW"),("統一超","2912.TW"),("味全","1201.TW"),("黑松","1234.TW"),
+    ("桂格","1227.TW"),
+    # --- 零售 / 百貨 ---
+    ("全家","5903.TW"),("遠東新","1402.TW"),("潤泰全","2915.TW"),
+    # --- 生技醫療 ---
+    ("台灣神隆","1789.TW"),("生達","1720.TW"),("杏輝","1734.TW"),("東洋","4105.TW"),
+    ("晟德","4123.TW"),("太景-KY","4157.TW"),
+    # --- 營建 ---
+    ("國泰建設","2501.TW"),("長虹","5534.TW"),("興富發","2542.TW"),("華固","2548.TW"),
+    # --- 電子通路 ---
+    ("大聯大","3702.TW"),("文曄","3036.TW"),("聯強","2347.TW"),
 ]
 
 def get_ticker(name):
@@ -401,82 +448,142 @@ def generate_market_headline(mkt, holdings_names=[]):
     focus_map={"鴻海":"鴻海看300","緯創":"緯創看176","台積電":"台積電跟ADR","欣興":"欣興守970","金像電":"金像電只觀察","群創":"群創反彈先處理","台達電":"台達電看大盤"}
     focus=[focus_map[n] for n in holdings_names if n in focus_map]
     return headline, "；".join(focus[:3])
-def calc_entry_price(ind, name):
-    price = ind.get("price", 0)
-    ma20 = ind.get("ma20", 0)
+def calc_indicators_ext(df):
+    """Extended indicators: prev-day values for crossover detection, volume ratio, close location."""
+    if df is None or len(df)<21: return {}
+    ind = calc_indicators(df)
+    if not ind: return {}
+    c = df["Close"].values.flatten().astype(float)
+    v = df["Volume"].values.flatten().astype(float)
+    hi = df["High"].values.flatten().astype(float)
+    lo = df["Low"].values.flatten().astype(float)
+    ma20_prev = float(np.mean(c[-21:-1]))
+    prev_close = float(c[-2])
+    # MA20 breakout: today above, yesterday below
+    ind["ma20_breakout"] = bool(c[-1] > ind["ma20"] and prev_close < ma20_prev)
+    # KD crossover today (K>D today, K<=D yesterday)
+    # Recalc KD for prev day
+    n=9
+    lows=[min(df["Low"].values.flatten()[max(0,i-n+1):i+1]) for i in range(len(c)-1)]
+    highs=[max(df["High"].values.flatten()[max(0,i-n+1):i+1]) for i in range(len(c)-1)]
+    rsv_p=[(c[i]-lows[i])/(highs[i]-lows[i]+1e-9)*100 for i in range(len(c)-1)]
+    Kp=50.0; Dp=50.0
+    for r2 in rsv_p: Kp=Kp*2/3+r2/3; Dp=Dp*2/3+Kp/3
+    ind["kd_cross"] = bool(ind["k"] > ind["d"] and Kp <= Dp)
+    # MACD histogram flip (neg->pos or DIF cross signal)
+    def ema_fn(x,n2):
+        e=np.zeros(len(x)); e[n2-1]=np.mean(x[:n2])
+        for i in range(n2,len(x)): e[i]=x[i]*2/(n2+1)+e[i-1]*(1-2/(n2+1))
+        return e
+    e12=ema_fn(c,12); e26=ema_fn(c,26); macd_line=e12-e26
+    sig9=ema_fn(macd_line[25:],9); hist=macd_line[25:]-sig9
+    ind["macd_flip"] = bool(len(hist)>=2 and hist[-1]>0 and hist[-2]<=0)
+    # Volume ratio: today vs 20-day avg
+    avg_v = float(np.mean(v[-21:-1])) if len(v)>=21 else float(np.mean(v[:-1]))
+    vol_ratio = float(v[-1]/avg_v) if avg_v>0 else 1.0
+    ind["vol_ratio"] = round(vol_ratio, 2)
+    # Close location: (close-low)/(high-low) today
+    day_range = float(hi[-1] - lo[-1])
+    ind["close_loc"] = round((c[-1]-lo[-1])/day_range, 2) if day_range>0 else 0.5
+    # Today gain%
+    ind["today_gain"] = round((c[-1]-c[-2])/c[-2]*100, 2) if c[-2]>0 else 0
+    # Distance from MA20 in %
+    ind["dist_ma20"] = round((c[-1]-ind["ma20"])/ind["ma20"]*100, 1) if ind["ma20"]>0 else 0
+    # ATR-based support
     atr = ind.get("atr", 0)
+    ind["support"] = round(ind["ma20"]*0.99, 1) if ind["ma20"]>0 else round(c[-1]*0.97,1)
+    ind["stop_price"] = round(ind["ma20"]*0.97, 1) if ind["ma20"]>0 else round(c[-1]*0.95,1)
+    return ind
+
+def get_signal_grade(ind):
+    """Grade a stock into: ready/pullback/watch/none based on anti-fake-breakout rules."""
+    if not ind: return "none", []
+    ma_break = ind.get("ma20_breakout", False)
+    kd_cross = ind.get("kd_cross", False)
+    macd_flip = ind.get("macd_flip", False)
     rsi = ind.get("rsi", 50)
+    vol_ratio = ind.get("vol_ratio", 1.0)
+    close_loc = ind.get("close_loc", 0.5)
+    today_gain = ind.get("today_gain", 0)
+    dist_ma20 = ind.get("dist_ma20", 0)
     above_ma = ind.get("above_ma20", False)
-    bearish = ind.get("bearish_day", False)
-    open_p = ind.get("open_price", price)
-    # Support zone = MA20 or price - 0.5*ATR, whichever is higher
-    support = round(max(ma20 * 0.995, price - atr * 0.5), 1) if atr > 0 and ma20 > 0 else round(price * 0.985, 1)
-    # Entry condition: now / pullback / limit
-    if above_ma and not bearish and rsi < 70:
-        condition = "now"   # Can enter at market price now
-        entry_low = round(price * 0.995, 1)
-        entry_high = round(price * 1.005, 1)
-        entry_msg = "現價附近可分批進場"
-    elif above_ma and (bearish or rsi >= 70):
-        condition = "pullback"  # Wait for pullback
-        entry_low = support
-        entry_high = round(price * 0.99, 1)
-        entry_msg = "等回測支撐 " + str(support) + " 再進"
-    elif not above_ma and rsi < 40:
-        condition = "limit"   # Limit order near MA20
-        entry_low = round(ma20 * 0.995, 1)
-        entry_high = round(ma20 * 1.005, 1)
-        entry_msg = "掛 MA20 附近 " + str(round(ma20, 1)) + " 限價"
+    signals = []
+    # Count fresh signals
+    if ma_break: signals.append("MA20突破")
+    if kd_cross: signals.append("KD黃金交叉")
+    if macd_flip: signals.append("MACD翻正")
+    n_signals = len(signals)
+    # Anti-fake-breakout filters
+    rsi_ok = 45 <= rsi <= 65
+    vol_ok = 1.2 <= vol_ratio <= 2.5
+    close_ok = close_loc >= 0.55
+    gain_ok = today_gain <= 7.0
+    gain_big = today_gain > 5.0
+    dist_far = dist_ma20 > 4.0
+    # Must have at least 1 fresh signal or above MA with KD/MACD
+    has_signal = n_signals >= 1 or (above_ma and (kd_cross or macd_flip))
+    if not has_signal: return "none", signals
+    if not rsi_ok: return "none", signals
+    # Classify
+    if n_signals >= 1 and vol_ok and close_ok and not gain_big and not dist_far:
+        return "ready", signals    # 明日可入手
+    elif gain_big or dist_far:
+        return "pullback", signals  # 等回測
     else:
-        condition = "wait"   # Not ready yet
-        entry_low = support
-        entry_high = round(ma20 * 1.01, 1) if ma20 > 0 else round(price * 1.01, 1)
-        entry_msg = "觀察站上 " + str(round(ma20, 1)) + " 再考慮"
-    stop = round(support * 0.97, 1)
-    risk_pct = round((price - stop) / price * 100, 1) if price > 0 else 0
-    return {"condition": condition, "entry_low": entry_low, "entry_high": entry_high,
-            "entry_msg": entry_msg, "support": support, "stop": stop, "risk_pct": risk_pct}
+        return "watch", signals     # 技術待確認
 
 def get_recommendations(mkt=None):
-    # Market weakness filter
     mkt_weak = False
     if mkt:
         tw_chg = mkt.get("台指",{}).get("change_pct",0)
         tsm_chg = mkt.get("TSM",{}).get("change_pct",0)
-        if tw_chg <= -1 or tsm_chg <= -3: mkt_weak = True
-    buy_picks=[]; watch_picks=[]; def_picks=[]
+        if tw_chg <= -1.5 or tsm_chg <= -3: mkt_weak = True
+    ready_picks=[]; pullback_picks=[]; watch_picks=[]
     for name,ticker in RECOMMEND_POOL:
         if ticker in ETF_LIST: continue
-        df=fetch_stock(ticker,"2mo")
-        if df is None or len(df)<20: continue
-        ind=calc_indicators(df)
+        df=fetch_stock(ticker,"3mo")
+        if df is None or len(df)<21: continue
+        ind=calc_indicators_ext(df)
         if not ind: continue
-        sc=score_stock(ind)
-        if sc<2: continue
+        grade, signals = get_signal_grade(ind)
+        if grade == "none": continue
         is_def = name in DEFENSIVE_STOCKS
-        is_growth = name in GROWTH_STOCKS
-        bearish = ind.get("bearish_day",False)
-        above_ma = ind.get("above_ma20",False)
-        rsi = ind.get("rsi",50)
-        # Score: deduct 1 if bearish day, deduct 1 if mkt_weak
-        buy_sc = sc - (1 if bearish else 0) - (1 if mkt_weak and not is_def else 0)
-        ep = calc_entry_price(ind, name)
-        entry = {"name":name,"ticker":ticker,"ind":ind,"score":sc,"buy_score":buy_sc,
-                 "is_def":is_def,"is_growth":is_growth,"bearish":bearish,"mkt_weak":mkt_weak,
-                 "ep":ep}
-        if is_def:
-            if sc>=2: def_picks.append(entry)
+        price = ind.get("price",0)
+        support = ind.get("support", round(price*0.97,1))
+        stop = ind.get("stop_price", round(price*0.95,1))
+        dist_support = round((price - support)/price*100, 1) if price>0 else 0
+        risk_pct = round((price - stop)/price*100, 1) if price>0 else 5.0
+        # Entry price zone
+        if grade == "ready":
+            entry_low = round(price*0.995, 1)
+            entry_high = round(price*1.008, 1)
+            entry_msg = "現價附近分批，停損 "+str(stop)
+        elif grade == "pullback":
+            entry_low = round(support*0.995, 1)
+            entry_high = round(support*1.01, 1)
+            entry_msg = "等回 "+str(support)+" 附近再進，今日漲幅"+str(ind.get("today_gain",0))+"%已大"
         else:
-            # Buy: condition is now/pullback AND buy_sc>=2 (lowered from 3)
-            if ep["condition"] in ("now","pullback") and buy_sc>=2:
-                buy_picks.append(entry)
-            # Watch: condition wait/limit OR buy_sc==1
-            elif sc>=2:
-                watch_picks.append(entry)
-    buy_picks.sort(key=lambda x:(-x["buy_score"], x["ep"]["condition"]!="now"))
+            entry_low = round(support, 1)
+            entry_high = round(ind.get("ma20",price)*1.005, 1)
+            entry_msg = "等突破確認收盤，勿追"
+        ep = {"condition": grade, "entry_low": entry_low, "entry_high": entry_high,
+              "entry_msg": entry_msg, "support": support, "stop": stop, "risk_pct": risk_pct}
+        entry = {"name":name,"ticker":ticker,"ind":ind,"score":len(signals),"buy_score":len(signals),
+                 "is_def":is_def,"is_growth":name in GROWTH_STOCKS,"bearish":ind.get("bearish_day",False),
+                 "mkt_weak":mkt_weak,"ep":ep,"signals":signals,
+                 "vol_ratio":ind.get("vol_ratio",1),"today_gain":ind.get("today_gain",0),
+                 "close_loc":ind.get("close_loc",0.5)}
+        if grade=="ready" and not mkt_weak:
+            ready_picks.append(entry)
+        elif grade=="pullback":
+            pullback_picks.append(entry)
+        else:
+            watch_picks.append(entry)
+    # Sort: more signals first, then by volume ratio
+    ready_picks.sort(key=lambda x:(-x["score"],-x["vol_ratio"]))
+    pullback_picks.sort(key=lambda x:-x["score"])
     watch_picks.sort(key=lambda x:-x["score"])
-    def_picks.sort(key=lambda x:-x["score"])
-    return buy_picks[:6], watch_picks[:4], def_picks[:3]
+    return ready_picks[:6], pullback_picks[:5], watch_picks[:4]
 
 def show_kline(ticker,height=260):
     df=fetch_stock(ticker)
@@ -531,7 +638,14 @@ def render_pick_card(p):
     if ind.get("k",50)<80 and ind.get("k",50)>ind.get("d",50): signals.append("KD🔁")
     if inst_val>0: signals.append("法人🏦")
     if bearish: signals.append("開高走低🔻")
-    sig_str=" | ".join(signals) if signals else "—"
+    signals = p.get("signals", [])
+    vol_r = p.get("vol_ratio", 1.0)
+    today_g = p.get("today_gain", 0)
+    close_l = p.get("close_loc", 0.5)
+    sig_str = " | ".join(signals) if signals else "—"
+    vol_str = str(round(vol_r,1))+"x量"
+    gain_str = ("+" if today_g>=0 else "")+str(today_g)+"%"
+    close_str = str(int(close_loc*100 if False else close_l*100))+"%位"
     # === RENDER ===
     # 1. Entry price box (most prominent)
     st.markdown(
@@ -550,7 +664,7 @@ def render_pick_card(p):
     # 2. Price / MA20 row
     prow([("現價",str(price),"#e6edf3"),("20MA",str(round(ma20,1)),"#8b949e")])
     # 3. Signals
-    st.markdown('<div style="font-size:0.7rem;color:#8b949e;padding:2px 0;">'+sig_str+'&nbsp;&nbsp;'+inst_txt+'</div>',unsafe_allow_html=True)
+    st.markdown('<div style="font-size:0.7rem;color:#8b949e;padding:2px 0 3px 0;"><span style="color:#58a6ff;">'+(sig_str)+'</span> &nbsp;|&nbsp; 漲幅:'+gain_str+' &nbsp;量比:'+vol_str+' &nbsp;收盤位置:'+close_str+'&nbsp;&nbsp;'+inst_txt+'</div>',unsafe_allow_html=True)
     # 4. K-line / AI buttons
     ai_key="ai_pick_"+ticker
     c1,c2=st.columns(2)
