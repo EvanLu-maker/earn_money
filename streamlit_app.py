@@ -117,7 +117,7 @@ NAME_TO_TICKER = {
     "玉晶光":"3406.TW","大立光":"3008.TW","嘉澤":"3533.TW","信驊":"5274.TW",
     "神盾":"6462.TW","力旺":"3529.TW","金像電":"2368.TW","欣興":"3037.TW",
     "奇鋐":"3017.TW","雙鴻":"3324.TW","建準":"2421.TW","超眾":"6230.TW",
-    "群創":"3481.TW","友達":"2409.TW","台灣大":"4904.TW","中華電":"2412.TW",
+    "群創":"3481.TW","友達":"2409.TW","遠傳":"4904.TW","台灣大":"3045.TW","中華電":"2412.TW",
     "國泰金":"2882.TW","富邦金":"2881.TW","中信金":"2891.TW","兆豐金":"2886.TW",
     "玉山金":"2884.TW","台塑":"1301.TW","南亞":"1303.TW","台化":"1326.TW",
     "台塑化":"6505.TW","中鋼":"2002.TW","長榮":"2603.TW","陽明":"2609.TW",
@@ -132,6 +132,8 @@ NAME_TO_TICKER = {
 ETF_LIST = {"00957.TW","0056.TW","00878.TW","00919.TW","0050.TW","006208.TW","00888.TW","00891.TW"}
 SECTOR_GROUPS={"AI半導體":["台積電","聯發科","日月光投控","矽力-KY","世界","聯電","力積電","群聯","瑞昱"],"PCB電路板":["欣興","金像電","臻鼎-KY","健鼎","耀華","台光電","南電","燿華"],"面板顯示":["群創","友達","彩晶"],"電源管理":["台達電","光寶科"],"組裝代工":["鴻海","廣達","緯創","英業達","仁寶","和碩"]}
 NON_CORE=["群創","友達","金像電","欣興","彩晶"]
+DEFENSIVE_STOCKS={"中華電","遠傳","台灣大","中鋼","台塑化","台塑","南亞","長榮","陽明","萬海"}
+GROWTH_STOCKS={"台積電","聯發科","鴻海","廣達","緯創","台達電","技嘉","微星","緯穎","日月光投控","奇鋐","雙鴻","矽力-KY","祥碩","信驊","世芯-KY","聯詠","群聯","瑞昱"}
 RECOMMEND_POOL = [
     ("台積電","2330.TW"),("聯發科","2454.TW"),("鴻海","2317.TW"),("台達電","2308.TW"),
     ("廣達","2382.TW"),("緯創","3231.TW"),("日月光投控","3711.TW"),("聯詠","3034.TW"),
@@ -141,7 +143,7 @@ RECOMMEND_POOL = [
     ("長榮","2603.TW"),("陽明","2609.TW"),("台塑化","6505.TW"),("中鋼","2002.TW"),
     ("力積電","6770.TW"),("南亞科","2408.TW"),("華邦電","2344.TW"),("旺宏","2337.TW"),
     ("緯穎","6669.TW"),("技嘉","2376.TW"),("微星","2377.TW"),("英業達","2356.TW"),
-    ("群聯","8299.TW"),("瑞昱","2379.TW"),("台灣大","4904.TW"),("中華電","2412.TW"),
+    ("群聯","8299.TW"),("瑞昱","2379.TW"),("遠傳","4904.TW"),("台灣大","3045.TW"),("中華電","2412.TW"),
 ]
 
 def get_ticker(name):
@@ -196,7 +198,7 @@ def calc_indicators(df):
     return {"rsi":round(rsi,1),"macd":round(hist[-1],3) if len(hist)>0 else 0,
             "macd_cross":bool(hist[-1]>0) if len(hist)>0 else False,
             "k":round(K,1),"d":round(D,1),"ma20":round(ma20,1),"above_ma20":bool(c[-1]>ma20),
-            "atr":round(atr,2),"inst":inst,"price":round(float(c[-1]),2)}
+            "atr":round(atr,2),"inst":inst,"price":round(float(c[-1]),2),"bearish_day":bool(float(df["Open"].iloc[-1])>float(c[-1])),"open_price":round(float(df["Open"].iloc[-1]),2)}
 
 def score_stock(ind):
     if not ind: return 0
@@ -306,8 +308,14 @@ def generate_market_headline(mkt, holdings_names=[]):
     focus_map={"鴻海":"鴻海看300","緯創":"緯創看176","台積電":"台積電跟ADR","欣興":"欣興守970","金像電":"金像電只觀察","群創":"群創反彈先處理","台達電":"台達電看大盤"}
     focus=[focus_map[n] for n in holdings_names if n in focus_map]
     return headline, "；".join(focus[:3])
-def get_recommendations():
-    picks=[]
+def get_recommendations(mkt=None):
+    # Market weakness filter: if TWI drops > 1%, no buy signal, show as watch only
+    mkt_weak = False
+    if mkt:
+        tw_chg = mkt.get("台指",{}).get("change_pct",0)
+        tsm_chg = mkt.get("TSM",{}).get("change_pct",0)
+        if tw_chg <= -1 or tsm_chg <= -3: mkt_weak = True
+    buy_picks=[]; watch_picks=[]; def_picks=[]
     for name,ticker in RECOMMEND_POOL:
         if ticker in ETF_LIST: continue
         df=fetch_stock(ticker,"2mo")
@@ -315,21 +323,26 @@ def get_recommendations():
         ind=calc_indicators(df)
         if not ind: continue
         sc=score_stock(ind)
-        if sc>=3: picks.append({"name":name,"ticker":ticker,"ind":ind,"score":sc})
-    picks.sort(key=lambda x:-x["score"])
-    if len(picks)<5:
-        for name,ticker in RECOMMEND_POOL:
-            if ticker in ETF_LIST or any(p["ticker"]==ticker for p in picks): continue
-            df=fetch_stock(ticker,"2mo")
-            if df is None or len(df)<20: continue
-            ind=calc_indicators(df)
-            if not ind: continue
-            if score_stock(ind)>=2:
-                picks.append({"name":name,"ticker":ticker,"ind":ind,"score":score_stock(ind)})
-                picks.sort(key=lambda x:-x["score"])
-            if len(picks)>=5: break
-    return picks[:10]
-
+        if sc<2: continue
+        is_def = name in DEFENSIVE_STOCKS
+        is_growth = name in GROWTH_STOCKS
+        bearish = ind.get("bearish_day",False)
+        above_ma = ind.get("above_ma20",False)
+        # Bearish day (open > close today) deducts 1 point for buy consideration
+        buy_sc = sc - (1 if bearish else 0)
+        entry = {"name":name,"ticker":ticker,"ind":ind,"score":sc,"buy_score":buy_sc,
+                 "is_def":is_def,"is_growth":is_growth,"bearish":bearish,"mkt_weak":mkt_weak}
+        if is_def:
+            if sc>=2: def_picks.append(entry)
+        elif mkt_weak or bearish or not above_ma:
+            if sc>=3: watch_picks.append(entry)
+        else:
+            if buy_sc>=3: buy_picks.append(entry)
+            elif sc>=2: watch_picks.append(entry)
+    buy_picks.sort(key=lambda x:-x["buy_score"])
+    watch_picks.sort(key=lambda x:-x["score"])
+    def_picks.sort(key=lambda x:-x["score"])
+    return buy_picks[:5], watch_picks[:5], def_picks[:3]
 def show_kline(ticker,height=260):
     df=fetch_stock(ticker)
     if df is not None and len(df)>5:
@@ -346,14 +359,39 @@ def prow(items):
 def render_pick_card(p):
     ind=p["ind"]; sc=p["score"]; name=p["name"]; ticker=p["ticker"]
     price=ind.get("price",0); entry=round(ind.get("ma20",price)*0.99,1)
-    atr_stop=round(price-ind.get("atr",0)*2,1); trail_stop=round(price*0.95,1)
     inst_val=ind.get("inst",0)
     inst_txt=("法人買超 "+str(inst_val)+"億") if inst_val>0 else ("法人小幅參與 "+str(abs(inst_val))+"億")
+    bearish=p.get("bearish",False); mkt_weak=p.get("mkt_weak",False)
+    is_def=p.get("is_def",False); is_growth=p.get("is_growth",False)
+    buy_sc=p.get("buy_score",sc)
+    # Type badge and action label
+    if is_def:
+        type_label="🛡️ 防禦/穩定"; type_color="#6e7681"; action="觀察配置"
+        reason="防禦型：高配息穩定，非短線攻擊標的"
+    elif mkt_weak and not is_def:
+        type_label="⚠️ 盤勢轉弱"; type_color="#e3b341"; action="僅觀察，不追價"
+        reason="大盤走弱，即便技術分高，今日先觀察支撐，不追進"
+    elif bearish:
+        type_label="🟠 盤中轉弱"; type_color="#f0883e"; action="等止跌確認"
+        reason="今日開高走低（賣壓重），扣1分，等收盤確認止跌後再評估"
+    else:
+        type_label="✅ 買進候選"; type_color="#3fb950"; action="可考慮分批進場"
+        reason="技術面偏多，站上MA20，法人/KD/MACD同向"
     signals=[]
-    if ind.get("above_ma20"): signals.append("✅20MA上方")
-    if ind.get("macd_cross"): signals.append("📈MACD擴大")
-    if ind.get("k",50)<80 and ind.get("k",50)>ind.get("d",50): signals.append("🔁KD交叉")
-    st.markdown('<div class="pick-card"><span class="pick-name">'+name+'</span><span class="pick-tag">'+ticker+'</span><span class="pick-score">評分 +'+str(sc)+'</span><div class="pick-info">現價 <b style="color:#e6edf3;">'+str(price)+'</b></div><div class="pick-entry">📍 建議入手：'+str(entry)+'</div><div class="pick-atr">🛡 停損 '+str(atr_stop)+' ／ 停利 '+str(trail_stop)+'</div><div class="sbar">'+("  ".join(signals) if signals else "觀察中")+'</div><div style="font-size:0.68rem;color:#8b949e;margin-top:3px;">'+inst_txt+'</div></div>',unsafe_allow_html=True)
+    if ind.get("above_ma20"): signals.append("✅MA20")
+    if ind.get("macd_cross"): signals.append("📈MACD")
+    if ind.get("k",50)<80 and ind.get("k",50)>ind.get("d",50): signals.append("🔁KD")
+    if inst_val>0: signals.append("🏦法人")
+    if bearish: signals.append("🔻開高走低")
+    sig_str=" ".join(signals) if signals else "—"
+    prow([("現價",str(price),"#e6edf3"),("評分",str(sc)+" → 買"+str(buy_sc) if bearish else "分數 +"+str(sc),"#79c0ff")])
+    prow([("參考入手",str(entry),"#3fb950"),("法人",inst_txt,"#8b949e")])
+    st.markdown('<div style="background:#21262d;border-left:3px solid '+type_color+';padding:6px 10px;border-radius:4px;margin:4px 0;">'
+        +'<span style="color:'+type_color+';font-weight:700;font-size:0.8rem;">'+type_label+'</span>'
+        +' <span style="color:#8b949e;font-size:0.75rem;">'+action+'</span><br>'
+        +'<span style="color:#c9d1d9;font-size:0.72rem;">'+reason+'</span><br>'
+        +'<span style="color:#8b949e;font-size:0.7rem;">'+sig_str+'</span>'
+        +'</div>',unsafe_allow_html=True)
     ai_key="ai_pick_"+ticker
     c1,c2=st.columns(2)
     with c1:
@@ -362,24 +400,30 @@ def render_pick_card(p):
     with c2:
         if st.button("🤖 AI分析",key="ap_"+ticker):
             with st.spinner("分析中..."):
-                prompt=("[推薦股] "+name+"("+ticker+") | 現價"+str(price)+" | RSI"+str(round(ind.get("rsi",0),0))+" MACD"+str(round(ind.get("macd",0),2))+" K"+str(round(ind.get("k",0),0))+" 20MA"+str(round(ind.get("ma20",0),0))+" | 法人:"+inst_txt+"\n你是台股分析師，數據已給你，禁止重複報價，今天日期是`"+str(datetime.date.today())+"`，繁體中文，請完整輸出，每個段落獨立換行：\n【結論】一句話說明為何推薦這檔\n【走勢】技術面偏多或偏空，關鍵支撐壓力\n【理由】進場依據與目標價\n【新聞】只引用近3個月內真實新聞，寫明月份，嚴禁捏造")
+                prompt=("[推薦股] "+name+"("+ticker+") | 現價"+str(price)+" | RSI"+str(round(ind.get("rsi",0),0))+" MACD"+str(round(ind.get("macd",0),2))+" K"+str(round(ind.get("k",0),0))+" 20MA"+str(round(ind.get("ma20",0),0))+" | "+inst_txt+" | 盤中:"+("開高走低" if bearish else "正常")+"
+你是台股分析師，數據已給你，禁止重複報價，今天日期是`"+str(datetime.date.today())+"`，繁體中文，請完整輸出，每個段落獨立換行：
+【結論】一句話說明操作建議（買進/觀察/防禦）
+【走勢】技術面偏多或偏空，關鍵支撐壓力
+【理由】進場依據或等待條件
+【新聞】只引用近3個月內真實新聞，寫明月份，嚴禁捏造")
                 st.session_state[ai_key]=call_ai(prompt)
-    if st.session_state.get(ai_key):
-        with st.expander("🤖 AI分析（"+name+"）", expanded=True):
-            _txt=st.session_state[ai_key]
-            import re as _re
-            _parts=_re.split(r'(【[^】]+】)',_txt)
-            _colors={"結論":"#f0883e","走勢":"#79c0ff","理由":"#e3b341","新聞":"#7ee787","ETF":"#7ee787"}
-            _cur_color="#c9d1d9"
-            for _p in _parts:
-                if _p.startswith("【") and _p.endswith("】"):
-                    _key=_p[1:-1]
-                    _cur_color=_colors.get(_key,"#c9d1d9")
-                    st.markdown(f'<span style="color:{_cur_color};font-weight:700;font-size:0.95rem;">{_p}</span>',unsafe_allow_html=True)
-                elif _p.strip():
-                    st.markdown(f'<div style="color:#c9d1d9;font-size:0.88rem;line-height:1.6;margin:4px 0 12px 0;padding-left:8px;border-left:2px solid {_cur_color};">{_p.strip()}</div>',unsafe_allow_html=True)
     if st.session_state.get("skp_"+ticker): show_kline(ticker)
-
+    if ai_key in st.session_state:
+        with st.expander("🤖 AI分析（"+name+"）",expanded=True):
+            raw=str(st.session_state[ai_key]).replace("<","&lt;").replace(">","&gt;")
+            _colors={"結論":"#f0883e","走勢":"#79c0ff","理由":"#e3b341","新聞":"#7ee787"}
+            import re
+            parts=re.split(r'(【[^】]+】)',raw)
+            html=""
+            cur_color="#c9d1d9"; cur_tag=""
+            for part in parts:
+                m=re.match(r'【([^】]+)】',part)
+                if m:
+                    cur_tag=m.group(1); cur_color=_colors.get(cur_tag,"#c9d1d9")
+                    html+='<div style="color:'+cur_color+';font-weight:700;margin-top:8px;">【'+cur_tag+'】</div>'
+                elif part.strip():
+                    html+='<div style="border-left:2px solid '+cur_color+';padding-left:8px;margin-bottom:4px;color:#c9d1d9;font-size:0.82rem;">'+part.strip()+'</div>'
+            st.markdown(html,unsafe_allow_html=True)
 def render_stock_card(r):
     name=r["name"]; price=r["price"]; cost=r["cost"]; shares=r["shares"]
     pnl_pct=r["pnl_pct"]; pnl_amt=r["pnl_amt"]; ind=r["ind"]; sc=r["score"]
@@ -509,15 +553,26 @@ def main():
                         with st.expander(r["name"]+"  "+str(r["price"])+"  "+pnl_t,expanded=False):
                             render_stock_card(r)
     with tab2:
-        st.caption("依技術評分排序（評分≥2），+表示法人資料為備援估算")
+        st.caption("依技術評分排序 | 盤勢轉弱時不顯示買進訊號")
         with st.spinner("掃描推薦中..."):
-            picks=get_recommendations()
-        if not picks:
+            buy_picks,watch_picks,def_picks=get_recommendations(mkt)
+        if not buy_picks and not watch_picks and not def_picks:
             st.info("目前無符合條件推薦股（評分≥2）")
-        for p in picks:
-            sc=p["score"]; ind=p.get("ind",{}) or {}
-            price=ind.get("price",0)
-            with st.expander(p["name"]+"  "+p["ticker"]+"  評分 +"+str(sc),expanded=False):
-                render_pick_card(p)
+        else:
+            if buy_picks:
+                st.markdown('<div style="color:#3fb950;font-weight:700;font-size:0.85rem;margin:4px 0;">✅ 買進候選</div>',unsafe_allow_html=True)
+                for p in buy_picks:
+                    with st.expander(p["name"]+"  "+p["ticker"]+"  +"+str(p["buy_score"])+"分",expanded=False):
+                        render_pick_card(p)
+            if watch_picks:
+                st.markdown('<div style="color:#e3b341;font-weight:700;font-size:0.85rem;margin:4px 0;">⚠️ 觀察/等確認</div>',unsafe_allow_html=True)
+                for p in watch_picks:
+                    with st.expander(p["name"]+"  "+p["ticker"]+"  +"+str(p["score"])+"分",expanded=False):
+                        render_pick_card(p)
+            if def_picks:
+                st.markdown('<div style="color:#6e7681;font-weight:700;font-size:0.85rem;margin:4px 0;">🛡️ 防禦/穩定型</div>',unsafe_allow_html=True)
+                for p in def_picks:
+                    with st.expander(p["name"]+"  "+p["ticker"]+"  +"+str(p["score"])+"分",expanded=False):
+                        render_pick_card(p)
 if __name__ == "__main__":
     main()
