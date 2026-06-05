@@ -271,16 +271,22 @@ def classify(r):
     sc=r.get("score",0); pnl=r.get("pnl_pct",0)
     pos=r.get("pos_pct",0); heavy=r.get("sector_heavy",False)
     noncore=r.get("is_noncore",False)
-    above_ma=r.get("ind",{}).get("above_ma20",False) if r.get("ind") else False
+    ind=r.get("ind",{}) or {}
+    above_ma=ind.get("above_ma20",False)
+    # 停損：技術面很爛（sc<=0）且虧損超過15%，或嚴重虧損跌破MA20
     if sc<=0 and pnl<-15: return "stop"
-    if pnl<-20: return "stop"
-    if sc<=1: return "reduce"
-    if noncore and pnl>10 and sc<3: return "reduce"
-    if pos>20 and sc<3: return "reduce"
-    if heavy and sc<3: return "reduce"
-    if sc>=4 and pnl>-5 and pos<=20 and not heavy and above_ma: return "add"
-    if sc>=3 and pnl>-10 and above_ma: return "strong"
-    return "watch"
+    if pnl<-20 and not above_ma: return "stop"
+    # 減碼：技術面弱（sc<=1）且跌破MA20（不管損益），或部位過重技術差
+    if sc<=1 and not above_ma: return "reduce"
+    if pos>20 and sc<3 and not above_ma: return "reduce"
+    if heavy and sc<3 and not above_ma: return "reduce"
+    # 加碼：技術非常強，站上MA20，部位不重，損益合理
+    if sc>=4 and pos<=20 and not heavy and above_ma and pnl>-5: return "add"
+    # 續抱：技術面OK（sc>=3且站上MA20），損益不論正負都可以續抱
+    if sc>=3 and above_ma: return "strong"
+    # 觀望：技術面普通（sc=2），或sc>=3但在MA20下方，等待轉機
+    if sc>=2 and above_ma and pnl>-10: return "watch"
+    return "reduce"
 def get_key_levels(r):
     price=r.get("price",0); cost=r.get("cost",0)
     ind=r.get("ind",{}) or {}
@@ -426,14 +432,14 @@ def render_stock_card(r):
     pnl_color="#3fb950" if pnl_pct>=0 else "#f85149"
     pnl_sign="+" if pnl_pct>=0 else ""
     cl=classify(r)
-    badge_map={"stop":("bg-stop","🔴 停損/出場"),"reduce":("bg-reduce","🟠 反彈減碼"),"watch":("bg-watch","⚠️ 觀望等待"),"strong":("bg-strong","💎 強勢續抱"),"add":("bg-add","➕ 條件加碼"),"etf":("bg-etf","💚 ETF長期持有"),"nodata":("bg-nodata","⚙️ 資料不足")}
+    badge_map={"stop":("bg-stop","🔴 技術破位/停損"),"reduce":("bg-reduce","🟠 技術轉弱/減碼"),"watch":("bg-watch","⚠️ 觀望等待"),"strong":("bg-strong","💎 技術強勢/續抱"),"add":("bg-add","➕ 條件加碼"),"etf":("bg-etf","💚 ETF長期持有"),"nodata":("bg-nodata","❌ 評估失敗")}
     badge_cls,badge_txt=badge_map.get(cl,("bg-watch","⚠️ 觀望等待"))
-    if cl=="nodata": badge_txt+=" — 現價異常，請重新抓取"
+    if cl=="nodata": badge_txt+=" — 無法取得報價，技術面無法評估"
     if r.get("pos_pct",0)>20 and cl not in ("stop","nodata","etf"): badge_txt+=" ⚠️單檔過重"
     if r.get("sector_heavy",False) and cl not in ("stop","nodata","etf"): badge_txt+=" ⚠️族群過重"
     if not price_ok:
         col_r1,col_r2=st.columns([3,1])
-        with col_r1: prow([("現價", "⚙️ 資料不足", "#8b949e")])
+        with col_r1: prow([("現價", "❌ 評估失敗", "#8b949e")])
         with col_r2:
             if st.button("🔄",key="retry_"+name,help="重新抓取現價"):
                 new_p=get_current_price(ticker)
@@ -537,7 +543,7 @@ def main():
             total_pnl_pct=total_pnl/total_cost*100 if total_cost>0 else 0
             pnl_col="#3fb950" if total_pnl>=0 else "#f85149"
             prow([("總損益",(("+" if total_pnl>=0 else "")+str(int(total_pnl))+"元（"+("+" if total_pnl_pct>=0 else "")+str(round(total_pnl_pct,1))+"%）"),pnl_col)])
-            tabs=st.tabs(["🔴 停損("+str(len(stop_l))+")","🟠 減碼("+str(len(reduce_l))+")","⚠️ 觀望("+str(len(watch_l))+")","💎 續抱("+str(len(strong_l))+")","➕ 加碼("+str(len(add_l))+")","💚 ETF("+str(len(etf_l))+")","⚙️ 資料("+str(len(nodata_l))+")"])
+            tabs=st.tabs(["🔴 停損("+str(len(stop_l))+")","🟠 減碼("+str(len(reduce_l))+")","⚠️ 觀望("+str(len(watch_l))+")","💎 續抱("+str(len(strong_l))+")","➕ 加碼("+str(len(add_l))+")","💚 ETF("+str(len(etf_l))+")","❌ 評估失敗("+str(len(nodata_l))+")"])
             for ti,(tab,group) in enumerate(zip(tabs,[stop_l,reduce_l,watch_l,strong_l,add_l,etf_l,nodata_l])):
                 with tab:
                     if not group: st.caption("本區無持股")
