@@ -38,6 +38,7 @@ div[data-testid="stExpander"]>details>summary{font-size:0.88rem!important;font-w
 .bg-stop{background:#3d1a1a;color:#f85149;border:1px solid #da3633;}
 .bg-nodata{background:#1c1c1c;color:#8b949e;border:1px solid #484f58;}
 .bg-etf{background:#1a3040;color:#7ee787;border:1px solid #3fb950;}
+.bg-profit{background:#1f2a0a;color:#d2a679;border:1px solid #c9871f;}
 .pbox{background:#21262d;border-radius:6px;padding:5px 4px;text-align:center;}
 .pbox .pl{font-size:0.58rem;color:#8b949e;text-transform:uppercase;display:block;margin-bottom:1px;}
 .pbox .pv{font-size:0.85rem;font-weight:700;color:#e6edf3;display:block;}
@@ -320,6 +321,13 @@ def classify(r):
     if sc<=1 and not above_ma: return "reduce"
     if pos>20 and sc<3 and not above_ma: return "reduce"
     if heavy and sc<3 and not above_ma: return "reduce"
+    # 獲利了結：報酬率高且技術轉弱，或大幅獲利
+    is_noncore=r.get("is_noncore",False)
+    rsi=ind.get("rsi",50); macd=ind.get("macd",0); bearish=ind.get("bearish_day",False)
+    tech_weak = (not above_ma) or (rsi>75 and macd<0) or (bearish and sc<4)
+    if pnl>25 and tech_weak: return "profit"
+    if pnl>15 and not above_ma: return "profit"
+    if pnl>8 and (is_noncore or noncore) and sc<4: return "profit"
     # 加碼：技術非常強，站上MA20，部位不重，損益合理
     if sc>=4 and pos<=20 and not heavy and above_ma and pnl>-5: return "add"
     # 續抱：技術面OK（sc>=3且站上MA20），損益不論正負都可以續抱
@@ -340,6 +348,45 @@ def get_key_levels(r):
     turn_strong=round(cost,1) if price<cost else round(cost*1.05,1)
     sys_stop=round(price-atr*2,1) if atr>0 and price>0 else op_stop
     return {"defend":defend,"turn_strong":turn_strong,"op_stop":op_stop,"sys_stop":sys_stop}
+
+def get_profit_action(r):
+    pnl=r.get("pnl_pct",0); name=r.get("name",""); ind=r.get("ind",{}) or {}
+    above_ma=ind.get("above_ma20",False); rsi=ind.get("rsi",50)
+    macd=ind.get("macd",0); bearish=ind.get("bearish_day",False)
+    sc=r.get("score",0); price=r.get("price",0); is_noncore=r.get("is_noncore",False)
+    # Determine stock type for trailing stop multiplier
+    ticker=r.get("ticker","")
+    if ticker in ETF_LIST: stop_mult=0.97
+    elif name in GROWTH_STOCKS: stop_mult=0.93
+    elif is_noncore: stop_mult=0.91
+    else: stop_mult=0.95
+    # Trailing stop: use MA20 as support reference if available
+    ma20=ind.get("ma20",0)
+    if ma20>0 and ma20>price*0.85:
+        trail_stop=round(max(price*stop_mult, ma20*0.99),1)
+    else:
+        trail_stop=round(price*stop_mult,1)
+    # Determine action and message
+    tech_weak=(not above_ma) or (rsi>75 and macd<0) or (bearish and sc<4)
+    if pnl>25 and tech_weak:
+        action="🔴 強烈建議獲利了結"; emoji="🔴"
+        msg="已大幅獲利，技術面轉弱，建議分批出場，不要等回到成本才後悔。"
+    elif pnl>15 and not above_ma:
+        action="⚡️ 建議部分獲利了結"; emoji="⚡️"
+        msg="獲利%d%%，跌破MA20支撐，建議先減碼保護獲利，守住再看。" % int(pnl)
+    elif pnl>25:
+        action="🛡 續抱但設追蹤停利"; emoji="🛡"
+        msg="大幅獲利且技術仍強，不追高，跌破 %.1f 可分批出場。" % trail_stop
+    elif pnl>15:
+        action="🛡 設停利保護獲利"; emoji="🛡"
+        msg="獲利%.0f%%，建議設追蹤停利 %.1f，不急出但守好獲利。" % (pnl, trail_stop)
+    elif is_noncore and pnl>8:
+        action="💰 題材股可分批出場"; emoji="💰"
+        msg="題材/非核心股，有獲利趁強先處理，不攤平，反彈可分批出。"
+    else:
+        action="💰 可分批出場"; emoji="💰"
+        msg="已有獲利，高風險股建議反彈處理，設停利 %.1f。" % trail_stop
+    return {"action":action,"emoji":emoji,"msg":msg,"trail_stop":trail_stop,"stop_mult":stop_mult}
 
 def generate_market_headline(mkt, holdings_names=[]):
     tw=mkt.get("台指",{}).get("change_pct",0)
@@ -472,11 +519,15 @@ def render_stock_card(r):
     pnl_color="#3fb950" if pnl_pct>=0 else "#f85149"
     pnl_sign="+" if pnl_pct>=0 else ""
     cl=classify(r)
-    badge_map={"stop":("bg-stop","🔴 技術破位/停損"),"reduce":("bg-reduce","🟠 技術轉弱/減碼"),"watch":("bg-watch","⚠️ 觀望等待"),"strong":("bg-strong","💎 技術強勢/續抱"),"add":("bg-add","➕ 條件加碼"),"etf":("bg-etf","💚 ETF長期持有"),"nodata":("bg-nodata","❌ 評估失敗")}
+    badge_map={"stop":("bg-stop","🔴 技術破位/停損"),"reduce":("bg-reduce","🟠 技術轉弱/減碼"),"watch":("bg-watch","⚠️ 觀望等待"),"strong":("bg-strong","💎 技術強勢/續抱"),"add":("bg-add","➕ 條件加碼"),"etf":("bg-etf","💚 ETF長期持有"),"nodata":("bg-nodata","❌ 評估失敗"),"profit":("bg-profit","💰 獲利了結區間")}
     badge_cls,badge_txt=badge_map.get(cl,("bg-watch","⚠️ 觀望等待"))
     if cl=="nodata": badge_txt+=" — 無法取得報價，技術面無法評估"
     if r.get("pos_pct",0)>20 and cl not in ("stop","nodata","etf"): badge_txt+=" ⚠️單檔過重"
     if r.get("sector_heavy",False) and cl not in ("stop","nodata","etf"): badge_txt+=" ⚠️族群過重"
+    # Profit action banner (always compute for any profitable stock)
+    profit_info=None
+    if price_ok and pnl_pct>8 and not is_etf:
+        profit_info=get_profit_action(r)
     if not price_ok:
         col_r1,col_r2=st.columns([3,1])
         no_reason="無法識別股票代碼" if not ticker else ("代碼:"+str(ticker)+" 抓取失敗")
@@ -501,6 +552,9 @@ def render_stock_card(r):
         atr_stop=round(price-ind.get("atr",0)*2,1); trail_stop=round(price*0.95,1)
         kl=get_key_levels(r)
         st.markdown('<div class="atr-box">🛡 操作停損 <b>'+str(kl["op_stop"])+'</b>｜防守 <b>'+str(kl["defend"])+'</b>｜轉強 <b>'+str(kl["turn_strong"])+'</b></div>',unsafe_allow_html=True)
+        if profit_info:
+            p_color={"🔴":"#f85149","⚡️":"#f0883e","🛡":"#58a6ff","💰":"#d2a679"}.get(profit_info["emoji"],"#d2a679")
+            st.markdown('<div style="background:#1a1500;border:1px solid #c9871f;border-left:4px solid '+p_color+';border-radius:6px;padding:7px 10px;margin:5px 0;"><div style="color:'+p_color+';font-weight:700;font-size:0.82rem;">'+profit_info["action"]+'</div><div style="color:#c9d1d9;font-size:0.78rem;margin-top:3px;">'+profit_info["msg"]+'</div><div style="color:#8b949e;font-size:0.72rem;margin-top:2px;">追蹤停利線：<b style=\"color:'+p_color+'\">'+str(profit_info["trail_stop"])+'</b></div></div>',unsafe_allow_html=True)
         ma_icon="✅" if ind.get("above_ma20") else "❌"; ma_dir="上方" if ind.get("above_ma20") else "下方"
         st.markdown('<div class="sbar">RSI:'+str(ind.get("rsi","-"))+' MACD:'+str(round(ind.get("macd",0),3))+' K:'+str(ind.get("k","-"))+'/D:'+str(ind.get("d","-"))+' MA20:'+str(ind.get("ma20","-"))+' '+ma_icon+ma_dir+'</div>',unsafe_allow_html=True)
         inst=ind.get("inst",0)
@@ -601,9 +655,12 @@ def main():
             add_l=[r for r in results if classify(r)=="add"]
             etf_l=[r for r in results if classify(r)=="etf"]
             nodata_l=[r for r in results if classify(r)=="nodata"]
-            tabs=st.tabs(["🔴 停損("+str(len(stop_l))+")","🟠 減碼("+str(len(reduce_l))+")","⚠️ 觀望("+str(len(watch_l))+")","💎 續抱("+str(len(strong_l))+")","➕ 加碼("+str(len(add_l))+")","💚 ETF("+str(len(etf_l))+")","❌ 評估失敗("+str(len(nodata_l))+")"])
-            for ti,(tab,group) in enumerate(zip(tabs,[stop_l,reduce_l,watch_l,strong_l,add_l,etf_l,nodata_l])):
+            profit_l=[r for r in results if classify(r)=="profit"]
+            tabs=st.tabs(["\U0001f4b0 \u7372\u5229\u51fa\u5834("+str(len(profit_l))+")","\U0001f534 \u505c\u640d("+str(len(stop_l))+")","\U0001f7e0 \u6e1b\u78bc("+str(len(reduce_l))+")","\u26a0\ufe0f \u89c0\u671b("+str(len(watch_l))+")","\U0001f48e \u7e8c\u62b1("+str(len(strong_l))+")","\u2795 \u52a0\u78bc("+str(len(add_l))+")","\U0001f49a ETF("+str(len(etf_l))+")","\u274c \u8a55\u4f30\u5931\u6557("+str(len(nodata_l))+")"])
+            for ti,(tab,group) in enumerate(zip(tabs,[profit_l,stop_l,reduce_l,watch_l,strong_l,add_l,etf_l,nodata_l])):
                 with tab:
+                    if ti==0 and profit_l:
+                        st.markdown('<div style="background:#1a1500;border:1px solid #c9871f;border-radius:8px;padding:8px 12px;margin-bottom:6px;font-size:0.8rem;color:#d2a679;">📌 以下持股已達獲利了結條件：大幅獲利或技術轉弱，建議優先處理，設追蹤停利或分批出場。</div>',unsafe_allow_html=True)
                     if not group: st.caption("本區無持股")
                     for r in group:
                         pnl_s="+" if r["pnl_pct"]>=0 else ""
