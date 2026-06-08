@@ -139,59 +139,59 @@ GROWTH_STOCKS={"台積電","聯發科","鴻海","廣達","緯創","台達電","�
 # 板塊: AI半導體/電子/金融/航運/傳產/鋼鐵/電信/面板/生技/食品/航太/房建
 RECOMMEND_POOL = [
     # --- AI / 半導體 ---
-    ("台積電","2330.TW"),("聯發科","2454.TW"),("日月光投控","3711.TW"),("聯電","2303.TW"),
-    ("力積電","6770.TW"),("南亞科","2408.TW"),("華邦電","2344.TW"),("旺宏","2337.TW"),
-    ("矽力-KY","6415.TWO"),("祥碩","5269.TWO"),("信驊","5274.TWO"),("世芯-KY","3661.TWO"),
-    ("瑞昱","2379.TW"),("聯詠","3034.TW"),("群聯","8299.TW"),("智原","3035.TWO"),
-    ("創意","3443.TW"),("神盾","6462.TWO"),("力旺","3529.TWO"),("M31","6643.TW"),
+    ("台積電","2330"),("聯發科","2454"),("日月光投控","3711"),("聯電","2303"),
+    ("力積電","6770"),("南亞科","2408"),("華邦電","2344"),("旺宏","2337"),
+    ("矽力-KY","6415"),("祥碩","5269"),("信驊","5274"),("世芯-KY","3661"),
+    ("瑞昱","2379"),("聯詠","3034"),("群聯","8299"),("智原","3035"),
+    ("創意","3443"),("神盾","6462"),("力旺","3529"),("M31","6643"),
     # --- 伺服器 / AI 供應鏈 ---
-    ("鴻海","2317.TW"),("廣達","2382.TW"),("緯創","3231.TW"),("緯穎","6669.TW"),
-    ("英業達","2356.TW"),("仁寶","2324.TW"),("和碩","4938.TW"),("技嘉","2376.TW"),
-    ("微星","2377.TW"),("華碩","2357.TW"),("宏碁","2353.TW"),
+    ("鴻海","2317"),("廣達","2382"),("緯創","3231"),("緯穎","6669"),
+    ("英業達","2356"),("仁寶","2324"),("和碩","4938"),("技嘉","2376"),
+    ("微星","2377"),("華碩","2357"),("宏碁","2353"),
     # --- 電源/散熱 ---
-    ("台達電","2308.TW"),("光寶科","2301.TW"),("奇鋐","3017.TWO"),("雙鴻","3324.TWO"),
-    ("建準","2421.TWO"),("超眾","6230.TWO"),
+    ("台達電","2308"),("光寶科","2301"),("奇鋐","3017"),("雙鴻","3324"),
+    ("建準","2421"),("超眾","6230"),
     # --- PCB / 載板 ---
-    ("欣興","3037.TW"),("金像電","2368.TW"),("健鼎","3044.TWO"),("嘉澤","3533.TWO"),
-    ("南電","8046.TW"),("臻鼎-KY","4958.TW"),("台光電","2383.TW"),
+    ("欣興","3037"),("金像電","2368"),("健鼎","3044"),("嘉澤","3533"),
+    ("南電","8046"),("臻鼎-KY","4958"),("台光電","2383"),
     # --- 光學 / 鏡頭 ---
-    ("大立光","3008.TW"),("玉晶光","3406.TWO"),("先進光","3362.TW"),
+    ("大立光","3008"),("玉晶光","3406"),("先進光","3362"),
     # --- 面板 ---
-    ("群創","3481.TW"),("友達","2409.TW"),
+    ("群創","3481"),("友達","2409"),
     # --- 記憶體模組 ---
-    ("威剛","3260.TW"),("宇瞻","8271.TW"),
+    ("威剛","3260"),("宇瞻","8271"),
     # --- 金融 ---
-    ("台灣金控","2892.TW"),("國泰金","2882.TW"),("富邦金","2881.TW"),("中信金","2891.TW"),
-    ("兆豐金","2886.TW"),("第一金","2892.TW"),("玉山金","2884.TW"),("元大金","2885.TW"),
-    ("永豐金","2890.TW"),("合庫金","5880.TW"),("開發金","2883.TW"),("台新金","2887.TW"),
+    ("台灣金控","2892"),("國泰金","2882"),("富邦金","2881"),("中信金","2891"),
+    ("兆豐金","2886"),("第一金","2892"),("玉山金","2884"),("元大金","2885"),
+    ("永豐金","2890"),("合庫金","5880"),("開發金","2883"),("台新金","2887"),
     # --- 電信 ---
-    ("中華電","2412.TW"),("台灣大","3045.TW"),("遠傳","4904.TW"),
+    ("中華電","2412"),("台灣大","3045"),("遠傳","4904"),
     # --- 航運 ---
-    ("長榮","2603.TW"),("陽明","2609.TW"),("萬海","2615.TW"),("台驊投控","2636.TW"),
-    ("慧洋-KY","2637.TW"),("裕民","2606.TW"),
+    ("長榮","2603"),("陽明","2609"),("萬海","2615"),("台驊投控","2636"),
+    ("慧洋-KY","2637"),("裕民","2606"),
     # --- 航空 ---
-    ("華航","2610.TW"),("長榮航空","2618.TW"),
+    ("華航","2610"),("長榮航空","2618"),
     # --- 石化 / 傳產 ---
-    ("台塑","1301.TW"),("南亞","1303.TW"),("台化","1326.TW"),("台塑化","6505.TW"),
-    ("奇美實業","3709.TW"),("大連","1303.TW"),
+    ("台塑","1301"),("南亞","1303"),("台化","1326"),("台塑化","6505"),
+    ("奇美實業","3709"),("大連","1303"),
     # --- 鋼鐵 ---
-    ("中鋼","2002.TW"),("豐興","2015.TW"),("東和鋼鐵","2006.TW"),("燁輝","2023.TW"),
+    ("中鋼","2002"),("豐興","2015"),("東和鋼鐵","2006"),("燁輝","2023"),
     # --- 汽車零件 ---
-    ("和泰車","2207.TW"),("裕隆","2201.TW"),("東陽","1319.TW"),
+    ("和泰車","2207"),("裕隆","2201"),("東陽","1319"),
     # --- 自行車 ---
-    ("巨大","9921.TW"),("美利達","9914.TW"),
+    ("巨大","9921"),("美利達","9914"),
     # --- 食品飲料 ---
-    ("統一","1216.TW"),("統一超","2912.TW"),("味全","1201.TW"),("黑松","1234.TW"),
-    ("桂格","1227.TW"),
+    ("統一","1216"),("統一超","2912"),("味全","1201"),("黑松","1234"),
+    ("桂格","1227"),
     # --- 零售 / 百貨 ---
-    ("全家","5903.TW"),("遠東新","1402.TW"),("潤泰全","2915.TW"),
+    ("全家","5903"),("遠東新","1402"),("潤泰全","2915"),
     # --- 生技醫療 ---
-    ("台灣神隆","1789.TW"),("生達","1720.TW"),("杏輝","1734.TW"),("東洋","4105.TW"),
-    ("晟德","4123.TW"),("太景-KY","4157.TW"),
+    ("台灣神隆","1789"),("生達","1720"),("杏輝","1734"),("東洋","4105"),
+    ("晟德","4123"),("太景-KY","4157"),
     # --- 營建 ---
-    ("國泰建設","2501.TW"),("長虹","5534.TW"),("興富發","2542.TW"),("華固","2548.TW"),
+    ("國泰建設","2501"),("長虹","5534"),("興富發","2542"),("華固","2548"),
     # --- 電子通路 ---
-    ("大聯大","3702.TW"),("文曄","3036.TW"),("聯強","2347.TW"),
+    ("大聯大","3702"),("文曄","3036"),("聯強","2347"),
 ]
 
 def get_ticker(name):
@@ -222,6 +222,27 @@ def fetch_stock(ticker, period="3mo"):
         df = df[["Open","High","Low","Close","Volume"]].dropna()
         return df if len(df) >= 5 else None
     except: return None
+
+@st.cache_data(ttl=86400)
+def resolve_ticker(num):
+    """Auto-detect .TW vs .TWO for a stock number. Returns resolved ticker or None."""
+    if not num: return None
+    # Already has suffix
+    if num.endswith('.TW') or num.endswith('.TWO'): return num
+    # Known OTC set (manually curated)
+    _otc = {"6415","5269","5274","6462","3661","3017","3324","2421","6230","3044","3533",
+            "3406","3529","3035","4749","8271","3362","3260","2637","4958","4123","4157"}
+    if num in _otc: return num+".TWO"
+    # Try .TW first (most stocks are listed)
+    for suffix in (".TW",".TWO"):
+        try:
+            t = num+suffix
+            df = yf.download(t, period="5d", interval="1d", progress=False, auto_adjust=True)
+            if df is not None and not df.empty and len(df)>=1:
+                return t
+        except: pass
+    return None
+
 
 def get_current_price(ticker):
     try:
@@ -325,6 +346,9 @@ def analyze_portfolio(stocks):
     results=[]
     for s in stocks:
         ticker=get_ticker(s["name"]); ind={}; price=None; fetched=False
+        # Auto-resolve .TW/.TWO if ticker has no suffix
+        if ticker and not ticker.endswith(".TW") and not ticker.endswith(".TWO"):
+            ticker = resolve_ticker(ticker) or ticker
         is_etf=ticker in ETF_LIST if ticker else False
         if ticker:
             price=get_current_price(ticker)
@@ -539,7 +563,9 @@ def get_recommendations(mkt=None):
         tsm_chg = mkt.get("TSM",{}).get("change_pct",0)
         if tw_chg <= -1.5 or tsm_chg <= -3: mkt_weak = True
     ready_picks=[]; pullback_picks=[]; watch_picks=[]
-    for name,ticker in RECOMMEND_POOL:
+    for name,num in RECOMMEND_POOL:
+        ticker = resolve_ticker(num)
+        if not ticker: continue
         if ticker in ETF_LIST: continue
         df=fetch_stock(ticker,"3mo")
         if df is None or len(df)<21: continue
@@ -661,7 +687,17 @@ def render_pick_card(p):
         +'<div style="margin-top:4px;font-size:0.78rem;color:#c9d1d9;">'+entry_msg+'</div>'
         +'</div>',
         unsafe_allow_html=True)
-    # 2. Price / MA20 row
+    # 2. Query links
+    _num = ticker.replace(".TW","").replace(".TWO","")
+    _yf_url = "https://tw.stock.yahoo.com/quote/"+_num
+    _gi_url = "https://goodinfo.tw/tw/StockInfo.asp?STOCK_ID="+_num
+    _tv_url = "https://www.tradingview.com/symbols/TWSE-"+_num
+    st.markdown('<div style="display:flex;gap:8px;margin:4px 0;flex-wrap:wrap;">'
+        +'<a href="'+_yf_url+'" target="_blank" style="background:#21262d;color:#58a6ff;border-radius:5px;padding:3px 9px;font-size:0.72rem;text-decoration:none;">📊 Yahoo</a>'
+        +'<a href="'+_gi_url+'" target="_blank" style="background:#21262d;color:#79c0ff;border-radius:5px;padding:3px 9px;font-size:0.72rem;text-decoration:none;">📈 Goodinfo</a>'
+        +'<a href="'+_tv_url+'" target="_blank" style="background:#21262d;color:#e3b341;border-radius:5px;padding:3px 9px;font-size:0.72rem;text-decoration:none;">🕯 TradingView</a>'
+        +'</div>',unsafe_allow_html=True)
+    # 3. Price / MA20 row
     prow([("現價",str(price),"#e6edf3"),("20MA",str(round(ma20,1)),"#8b949e")])
     # 3. Signals
     st.markdown('<div style="font-size:0.7rem;color:#8b949e;padding:2px 0 3px 0;"><span style="color:#58a6ff;">'+(sig_str)+'</span> &nbsp;|&nbsp; 漲幅:'+gain_str+' &nbsp;量比:'+vol_str+' &nbsp;收盤位置:'+close_str+'&nbsp;&nbsp;'+inst_txt+'</div>',unsafe_allow_html=True)
