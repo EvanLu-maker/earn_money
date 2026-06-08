@@ -857,7 +857,7 @@ def main():
         +'</div>',unsafe_allow_html=True)
     # All-in-one tab bar: 匯入 | 持有股 | 推薦 (同一行)
     n_port=len(st.session_state.get("portfolio",[]))
-    tab0,tab1,tab2=st.tabs(["⬆️ 匯入("+str(n_port)+"筆)" if n_port>0 else "⬆️ 匯入","📁 持有股","⭐ 推薦"])
+    tab0,tab1,tab2,tab3=st.tabs(["⬆️ 匯入("+str(n_port)+"筆)" if n_port>0 else "⬆️ 匯入","📁 持有股","⭐ 推薦","🔍 查股"])
     with tab0:
         st.caption("券商匯出 CSV | 只讀名稱/股數/成交均價 | 市價即時抓")
         uploaded=st.file_uploader("上傳持股CSV",type=["csv","txt"],label_visibility="collapsed",key="csv_upload")
@@ -950,5 +950,85 @@ def main():
                 for p in def_picks:
                     with st.expander(p["name"]+"  "+p["ticker"]+"  +"+str(p["score"])+"分",expanded=False):
                         render_pick_card(p)
+    with tab3:
+        st.caption("輸入股票代碼（如 2330）或名稱（如 台積電）— 資料來源：Yahoo Finance")
+        sq_col1, sq_col2 = st.columns([4,1])
+        with sq_col1:
+            sq_input = st.text_input("", placeholder="輸入代碼或名稱，例：2330 或 台積電", label_visibility="collapsed", key="sq_input")
+        with sq_col2:
+            sq_btn = st.button("🔍 查詢", key="sq_btn", use_container_width=True)
+        if sq_btn and sq_input:
+            st.session_state["sq_query"] = sq_input.strip()
+        sq_query = st.session_state.get("sq_query","")
+        if sq_query:
+            # Resolve ticker: try NAME_TO_TICKER, then resolve_ticker on bare number
+            sq_ticker = get_ticker(sq_query)
+            if sq_ticker and not sq_ticker.endswith(".TW") and not sq_ticker.endswith(".TWO"):
+                sq_ticker = resolve_ticker(sq_ticker) or sq_ticker
+            if not sq_ticker:
+                sq_ticker = resolve_ticker(sq_query)
+            if not sq_ticker:
+                st.error("找不到「"+sq_query+"」，請確認代碼或名稱")
+            else:
+                sq_df = fetch_stock(sq_ticker, "6mo")
+                sq_ind = calc_indicators_ext(sq_df) if sq_df is not None and len(sq_df)>=21 else (calc_indicators(sq_df) if sq_df is not None and len(sq_df)>=20 else {})
+                sq_price = sq_ind.get("price",0) if sq_ind else 0
+                sq_name = sq_query if sq_query in NAME_TO_TICKER else sq_query
+                _sq_num = sq_ticker.replace(".TW","").replace(".TWO","")
+                # Data source note
+                st.markdown('<div style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:8px 12px;margin:4px 0;display:flex;justify-content:space-between;align-items:center;">'
+                    +'<span style="color:#e6edf3;font-weight:700;font-size:1rem;">'+sq_name+' <span style="color:#8b949e;font-size:0.75rem;">'+sq_ticker+'</span></span>'
+                    +'<span style="color:#3fb950;font-size:1.1rem;font-weight:800;">'+str(sq_price)+'</span>'
+                    +'</div>',unsafe_allow_html=True)
+                # Query links
+                st.markdown('<div style="display:flex;gap:8px;margin:4px 0;">'
+                    +'<a href="https://tw.stock.yahoo.com/quote/'+_sq_num+'" target="_blank" style="background:#21262d;color:#58a6ff;border-radius:5px;padding:3px 9px;font-size:0.72rem;text-decoration:none;">📊 Yahoo</a>'
+                    +'<a href="https://goodinfo.tw/tw/StockInfo.asp?STOCK_ID='+_sq_num+'" target="_blank" style="background:#21262d;color:#79c0ff;border-radius:5px;padding:3px 9px;font-size:0.72rem;text-decoration:none;">📈 Goodinfo</a>'
+                    +'<a href="https://www.tradingview.com/symbols/TWSE-'+_sq_num+'" target="_blank" style="background:#21262d;color:#e3b341;border-radius:5px;padding:3px 9px;font-size:0.72rem;text-decoration:none;">🕯 TradingView</a>'
+                    +'<span style="color:#8b949e;font-size:0.68rem;align-self:center;">資料來源：Yahoo Finance (yfinance)</span>'
+                    +'</div>',unsafe_allow_html=True)
+                if sq_ind:
+                    # Indicators row
+                    ma_icon="✅" if sq_ind.get("above_ma20") else "❌"
+                    st.markdown('<div class="sbar">RSI:'+str(sq_ind.get("rsi","-"))+" MACD:"+str(round(sq_ind.get("macd",0),3))+" K:"+str(sq_ind.get("k","-"))+" D:"+str(sq_ind.get("d","-"))+" MA20:"+str(sq_ind.get("ma20","-"))+" "+ma_icon+' | 今漲:'+str(sq_ind.get("today_gain","—"))+'% 量比:'+str(sq_ind.get("vol_ratio","—"))+'x</div>',unsafe_allow_html=True)
+                    # Signal grade
+                    sq_grade, sq_sigs = get_signal_grade(sq_ind)
+                    grade_map={"ready":("#3fb950","✅ 訊號明確，可留意入場"),"pullback":("#79c0ff","🔵 有訊號但漲太多，等回測"),"watch":("#e3b341","⏳ 技術待確認，觀望"),"none":("#8b949e","— 目前無明確進場訊號")}
+                    gc,gt=grade_map.get(sq_grade,("#8b949e","—"))
+                    sigs_str=" | ".join(sq_sigs) if sq_sigs else "無突破訊號"
+                    st.markdown('<div style="background:#161b22;border-left:3px solid '+gc+';border-radius:6px;padding:6px 10px;margin:4px 0;"><span style="color:'+gc+';font-weight:700;font-size:0.82rem;">'+gt+'</span><br><span style="color:#8b949e;font-size:0.72rem;">訊號：'+sigs_str+'</span></div>',unsafe_allow_html=True)
+                else:
+                    st.warning("無法取得技術指標（資料不足）")
+                # K-line
+                sq_kline_key = "sq_kline_"+sq_ticker
+                if st.button("📈 顯示K線圖", key="sq_kbtn_"+sq_ticker):
+                    st.session_state[sq_kline_key] = not st.session_state.get(sq_kline_key, False)
+                if st.session_state.get(sq_kline_key):
+                    show_kline(sq_ticker, height=300)
+                # AI analysis
+                sq_ai_key = "sq_ai_"+sq_ticker
+                if st.button("🤖 AI分析", key="sq_aibtn_"+sq_ticker):
+                    with st.spinner("AI分析中..."):
+                        rsi_v=str(sq_ind.get("rsi","-")) if sq_ind else "-"
+                        macd_v=str(round(sq_ind.get("macd",0),3)) if sq_ind else "-"
+                        k_v=str(sq_ind.get("k","-")) if sq_ind else "-"
+                        ma_v=str(sq_ind.get("ma20","-")) if sq_ind else "-"
+                        gain_v=str(sq_ind.get("today_gain","—")) if sq_ind else "-"
+                        prompt="[查股] "+sq_name+"("+sq_ticker+") 現價"+str(sq_price)+" RSI"+rsi_v+" MACD"+macd_v+" K"+k_v+" MA20"+ma_v+" 今漲"+gain_v+"% 你是台股分析師數據已給你禁止重複報價今天日期是 "+str(datetime.date.today())+" 繁體中文完整輸出每段獨立：【結論】一句話操作建議 【走勢】技術面偏多偏空關鍵支撐壓力 【理由】進場依據或等待條件 【新聞】只引用近3個月內真實新聞寫明月份嚴禁捏造"
+                        st.session_state[sq_ai_key] = call_ai(prompt)
+                if st.session_state.get(sq_ai_key):
+                    with st.expander("🤖 AI分析（"+sq_name+"）", expanded=True):
+                        import re as _re2
+                        _txt2 = str(st.session_state[sq_ai_key])
+                        _parts2 = _re2.split(r'(【[^】]+】)', _txt2)
+                        _colors2 = {"結論":"#f0883e","走勢":"#79c0ff","理由":"#e3b341","新聞":"#7ee787"}
+                        _cur2 = "#c9d1d9"
+                        for _p2 in _parts2:
+                            if _p2.startswith("【") and _p2.endswith("】"):
+                                _cur2 = _colors2.get(_p2[1:-1],"#c9d1d9")
+                                st.markdown('<span style="color:'+_cur2+';font-weight:700;font-size:0.95rem;">'+_p2+'</span>',unsafe_allow_html=True)
+                            elif _p2.strip():
+                                st.markdown('<div style="color:#c9d1d9;font-size:0.88rem;line-height:1.6;margin:4px 0 12px 0;padding-left:8px;border-left:2px solid '+_cur2+';">'+_p2.strip()+'</div>',unsafe_allow_html=True)
+
 if __name__ == "__main__":
     main()
