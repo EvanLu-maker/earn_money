@@ -782,6 +782,7 @@ def render_stock_card(r):
                     st.rerun()
     else:
         prow([("現價", str(price), "#e6edf3")])
+    prow([("股數", str(int(shares))+"股", "#8b949e")])
     prow([("成本", str(cost), "#8b949e")])
     if price_ok:
         prow([("損益", pnl_sign+str(int(pnl_amt))+" ("+pnl_sign+str(round(pnl_pct,1))+"%)", pnl_color)])
@@ -965,8 +966,9 @@ def main():
                     if not group: st.caption("本區無持股")
                     for r in group:
                         pnl_s="+" if r["pnl_pct"]>=0 else ""
-                        pnl_t=(pnl_s+str(round(r["pnl_pct"],1))+"%") if r.get("price_ok") else "⚙️"
-                        with st.expander(r["name"]+"  "+str(r["price"])+"  "+pnl_t,expanded=False):
+                        pnl_clr="#3fb950" if r["pnl_pct"]>=0 else "#f85149"
+                        pnl_disp=(pnl_s+str(int(r["pnl_amt"]))+"("+pnl_s+str(round(r["pnl_pct"],1))+"%)") if r.get("price_ok") else "⚙️"
+                        with st.expander(r["name"]+" | "+pnl_disp+" | "+str(r["price"]),expanded=False):
                             render_stock_card(r)
     with tab2:
         st.caption("依技術評分排序 | 盤勢轉弱時不顯示買進訊號")
