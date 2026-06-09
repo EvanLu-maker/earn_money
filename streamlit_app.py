@@ -56,6 +56,8 @@ div[data-testid="stExpander"]>details>summary{font-size:0.88rem!important;font-w
 .pick-atr{background:#1a2233;border-radius:4px;padding:3px 7px;font-size:0.7rem;color:#58a6ff;margin-top:3px;display:inline-block;}
 .nowrap-cols > div[data-testid="stHorizontalBlock"] {flex-wrap:nowrap!important;}
 .fav-tag{display:inline-block;background:#1f2e40;border:1px solid #1f6feb;border-radius:12px;padding:2px 10px;font-size:0.75rem;color:#79c0ff;margin:2px 3px;cursor:pointer;}
+.btn-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.btn-row > div[data-testid="stElementContainer"]{margin:0!important;}
 </style>
 """, unsafe_allow_html=True)
 
@@ -1120,9 +1122,84 @@ def main():
                 for p in def_picks:
                     with st.expander(p["name"]+"  "+p["ticker"]+"  +"+str(p["score"])+"分",expanded=False):
                         render_pick_card(p)
+        # --- 自訂觀察清單 ---
+        import streamlit.components.v1 as _cmpv1
+        _wl_js = """<script>
+(function(){
+  var raw=localStorage.getItem('wl_tickers');
+  if(raw){var u=new URL(window.parent.location.href);u.searchParams.set('_wl',raw);window.parent.history.replaceState(null,'',u);}
+})();
+</script>"""
+        _cmpv1.html(_wl_js, height=0)
+        _wl_qp = st.query_params.get('_wl','')
+        if _wl_qp and not st.session_state.get('wl_loaded'):
+            import json as _json
+            try:
+                _wl_data = _json.loads(_wl_qp)
+                st.session_state['wl_tickers'] = _wl_data
+            except: pass
+            st.session_state['wl_loaded'] = True
+        with st.expander("👁 自訂觀察清單", expanded=True):
+            _wl = st.session_state.get('wl_tickers', [])
+            _wl_in_c1, _wl_in_c2 = st.columns([4,1])
+            with _wl_in_c1:
+                _wl_new = st.text_input("", placeholder="輸入代號 如 2330", key="wl_input", label_visibility="collapsed")
+            with _wl_in_c2:
+                if st.button("➕ 加入", key="wl_add", use_container_width=True):
+                    _wl_t = _wl_new.strip()
+                    if _wl_t and _wl_t not in _wl:
+                        _wl.append(_wl_t)
+                        st.session_state['wl_tickers'] = _wl
+                        import json as _json2
+                        _wl_save_js = "<script>localStorage.setItem('wl_tickers','" + _json2.dumps(_wl).replace("'","\'") + "');</script>"
+                        _cmpv1.html(_wl_save_js, height=0)
+                        st.rerun()
+            if _wl:
+                for _wl_t in list(_wl):
+                    _wl_tk = get_ticker(_wl_t) or resolve_ticker(_wl_t) or _wl_t
+                    if _wl_tk and not _wl_tk.endswith('.TW') and not _wl_tk.endswith('.TWO'):
+                        _wl_tk = resolve_ticker(_wl_tk) or _wl_tk
+                    _wl_p = get_current_price(_wl_tk) if _wl_tk else 0
+                    _wl_ind = None
+                    if _wl_tk:
+                        _wl_df = fetch_stock(_wl_tk)
+                        if _wl_df is not None and len(_wl_df)>=20:
+                            _wl_ind = calc_indicators(_wl_df)
+                    _wl_sc = score_stock(_wl_ind) if _wl_ind else 0
+                    _wl_rsi = str(_wl_ind.get('rsi','-')) if _wl_ind else '-'
+                    _wl_sc_clr = "#3fb950" if _wl_sc>0 else "#8b949e"
+                    _wl_p_str = str(_wl_p) if _wl_p else "—"
+                    _wl_c1,_wl_c2,_wl_c3 = st.columns([3,2,1])
+                    with _wl_c1: st.markdown(f'<span style="color:#e6edf3;font-weight:600">{_wl_t}</span> <span style="color:#8b949e;font-size:0.8rem">RSI:{_wl_rsi}</span>', unsafe_allow_html=True)
+                    with _wl_c2: st.markdown(f'<span style="color:#79c0ff">{_wl_p_str}</span> <span style="color:{_wl_sc_clr};font-size:0.8rem">{("+" if _wl_sc>0 else "")}{_wl_sc}分</span>', unsafe_allow_html=True)
+                    with _wl_c3:
+                        if st.button("✕", key="wl_rm_"+_wl_t):
+                            _wl.remove(_wl_t)
+                            st.session_state['wl_tickers'] = _wl
+                            import json as _json3
+                            _wl_rm_js = "<script>localStorage.setItem('wl_tickers','" + _json3.dumps(_wl).replace("'","\'") + "');</script>"
+                            _cmpv1.html(_wl_rm_js, height=0)
+                            st.rerun()
+            else:
+                st.caption("尚無觀察股票，請輸入代號加入")
     with tab3:
         st.caption("輸入股票代碼（如 2330）或名稱（如 台積電）— 資料來源：Yahoo Finance")
-        # --- 最愛清單顯示 ---
+        # --- 最愛清單 (localStorage持久) ---
+        import streamlit.components.v1 as _cmpv1b
+        _fav_js = """<script>
+(function(){
+  var raw=localStorage.getItem('fav_stocks');
+  if(raw){var u=new URL(window.parent.location.href);u.searchParams.set('_favs',raw);window.parent.history.replaceState(null,'',u);}
+})();
+</script>"""
+        _cmpv1b.html(_fav_js, height=0)
+        _fav_qp = st.query_params.get('_favs','')
+        if _fav_qp and not st.session_state.get('favs_loaded'):
+            import json as _fjson
+            try:
+                st.session_state['favorites'] = _fjson.loads(_fav_qp)
+            except: pass
+            st.session_state['favs_loaded'] = True
         _favs = st.session_state.get('favorites', [])
         if _favs:
             st.markdown('<div style="margin-bottom:6px">' + ''.join(['<span class="fav-tag">⭐ '+f["name"]+'</span>' for f in _favs]) + '</div>', unsafe_allow_html=True)
@@ -1180,12 +1257,17 @@ def main():
                 _favs = st.session_state.get('favorites', [])
                 _is_faved = any(f['ticker']==_fav_key for f in _favs)
                 if _is_faved:
-                    if st.button("⭐ 移出最愛", key="fav_rm_"+sq_ticker, use_container_width=False):
+                    if st.button("⭐ 移出最愛", key="fav_rm_"+sq_ticker):
                         st.session_state['favorites'] = [f for f in _favs if f['ticker']!=_fav_key]
+                        import json as _fjson2
+                        _cmpv1b.html("<script>localStorage.setItem('fav_stocks','"+_fjson2.dumps(st.session_state['favorites']).replace("'","\'"+"")+"');</script>",height=0)
                         st.rerun()
                 else:
-                    if st.button("☆ 加入最愛", key="fav_add_"+sq_ticker, use_container_width=False):
-                        st.session_state.setdefault('favorites',[]).append({"ticker":sq_ticker,"name":sq_name,"price":sq_price})
+                    if st.button("☆ 加入最愛", key="fav_add_"+sq_ticker):
+                        _new_favs = _favs + [{"ticker":sq_ticker,"name":sq_name,"price":sq_price}]
+                        st.session_state['favorites'] = _new_favs
+                        import json as _fjson2
+                        _cmpv1b.html("<script>localStorage.setItem('fav_stocks','"+_fjson2.dumps(_new_favs).replace("'","\'"+"")+"');</script>",height=0)
                         st.rerun()
                 sq_kline_key = "sq_kline_"+sq_ticker
                 if st.button("📈 顯示K線圖", key="sq_kbtn_"+sq_ticker):
@@ -1261,11 +1343,10 @@ def main():
             'API Key', value=api_key_val, type='password',
             placeholder=provider_hints.get(selected_provider, '請輸入 API Key')
         )
-        _btn_c1, _btn_c2 = st.columns(2, gap="small")
-        with _btn_c1:
-            _do_save = st.button("💾 儲存", use_container_width=True, key="api_save_btn")
-        with _btn_c2:
-            _do_clear = st.button("🗑️ 清除", use_container_width=True, key="api_clear_btn")
+        st.markdown('<div class="btn-row">', unsafe_allow_html=True)
+        _do_save = st.button("💾 儲存", use_container_width=True, key="api_save_btn")
+        _do_clear = st.button("🗑️ 清除", use_container_width=True, key="api_clear_btn")
+        st.markdown('</div>', unsafe_allow_html=True)
         if _do_save:
             if api_key_input.strip():
                 st.session_state['user_api_provider'] = selected_provider
