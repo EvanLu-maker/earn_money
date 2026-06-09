@@ -908,6 +908,7 @@ def main():
                     st.session_state['uploaded_csv_name']=uploaded.name
                 st.success("✅ 已載入 "+str(len(stocks))+" 筆持股："+", ".join([s["name"] for s in stocks]))
             else: st.error("❌ 解析失敗，請確認格式：名稱,股數,,成本")
+        cur_port=st.session_state.get("portfolio",[])
         if cur_port:
             res_t0=analyze_portfolio(cur_port)
             tpnl=sum(r["pnl_amt"] for r in res_t0 if r.get("price_ok"))
