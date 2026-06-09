@@ -1073,6 +1073,15 @@ def main():
         st.markdown('### ⚙️ 設定')
         st.markdown('#### 🔑 API Key 設定')
         import streamlit.components.v1 as components
+        _qp=st.query_params
+        if _qp.get('_wk') and not st.session_state.get('user_api_key'):
+            st.session_state['user_api_key']=_qp['_wk']
+            st.session_state['user_api_provider']=_qp.get('_wp','gemini')
+            st.query_params.clear()
+            st.rerun()
+        if not st.session_state.get('user_api_key'):
+            _js='<script>(function(){var k=localStorage.getItem("wap_key");var p=localStorage.getItem("wap_provider");if(k&&k.length>0){var u=new URL(window.parent.location.href);u.searchParams.set("_wk",k);u.searchParams.set("_wp",p||"gemini");window.parent.history.replaceState({},"",u.toString());window.parent.location.reload();}})()</script>'
+            components.html(_js,height=0)
         provider_choices = ['claude (Claude AI)', 'openai (ChatGPT)', 'gemini (Google 免費)']
         provider_map = {'claude (Claude AI)': 'claude', 'openai (ChatGPT)': 'openai', 'gemini (Google 免費)': 'gemini'}
         cur_provider = st.session_state.get('user_api_provider', 'gemini')
