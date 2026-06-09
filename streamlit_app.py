@@ -1214,14 +1214,14 @@ def main():
                 st.session_state['user_api_key'] = api_key_input.strip()
                 safe_k = api_key_input.strip().replace("'", "\'")
                 safe_p = selected_provider
-                    components.html(f"""<script>try{{localStorage.setItem('wap_provider','{safe_p}');localStorage.setItem('wap_key','{safe_k}');}}catch(e){{}}</script>""", height=0)
+                components.html(f"""<script>try{{localStorage.setItem('wap_provider','{safe_p}');localStorage.setItem('wap_key','{safe_k}');}}catch(e){{}}</script>""", height=0)
                 st.success(f'✅ 已儲存！{selected_provider.upper()}')
             else:
                 st.warning('請先輸入 API Key')
         if _do_clear:
             st.session_state.pop('user_api_provider', None)
             st.session_state.pop('user_api_key', None)
-                components.html("""<script>try{localStorage.removeItem('wap_provider');localStorage.removeItem('wap_key');}catch(e){}</script>""", height=0)
+            components.html("""<script>try{localStorage.removeItem('wap_provider');localStorage.removeItem('wap_key');}catch(e){}</script>""", height=0)
             st.info('已清除。')
         if st.session_state.get('user_api_key'):
             k = st.session_state['user_api_key']
