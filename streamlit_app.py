@@ -57,6 +57,22 @@ div[data-testid="stExpander"]>details>summary{font-size:0.88rem!important;font-w
 </style>
 """, unsafe_allow_html=True)
 
+def get_stock_news(name, ticker_num, max_items=4):
+    """從 Google News RSS 抓取最近新聞標題，失敗回傳空字串"""
+    try:
+        import feedparser, urllib.parse
+        query = urllib.parse.quote(name + " 股票")
+        url = "https://news.google.com/rss/search?q=" + query + "&hl=zh-TW&gl=TW&ceid=TW:zh-Hant"
+        feed = feedparser.parse(url)
+        items = []
+        for entry in feed.entries[:max_items]:
+            pub = entry.get("published","")[:16] if entry.get("published") else "近期"
+            title = entry.get("title","").split(" - ")[0]
+            items.append("• " + pub + " " + title)
+        return "\n".join(items) if items else ""
+    except:
+        return ""
+
 def get_ai_client():
     try:
         key = st.secrets.get("ANTHROPIC_API_KEY","")
@@ -710,7 +726,10 @@ def render_pick_card(p):
     with c2:
         if st.button("🤖 AI分析",key="ap_"+ticker):
             with st.spinner("分析中..."):
-                prompt=("[推薦股] "+name+"("+ticker+") | 現價"+str(price)+" | RSI"+str(round(ind.get("rsi",0),0))+" MACD"+str(round(ind.get("macd",0),2))+" K"+str(round(ind.get("k",0),0))+" 20MA"+str(round(ma20,0))+" | "+inst_txt+" | 盤中:"+("開高走低" if bearish else "正常")+" 你是台股分析師，數據已給你，禁止重複報價，今天日期是 "+str(datetime.date.today())+"，繁體中文，每個段落獨立，請輸出：【結論】一句話操作建議 【走勢】技術面偏多或偏空關鍵支撐壓力 【理由】進場依據或等待條件 【新聞】只引用近3個月內真實新聞寫明月份嚴禁捏造")
+                _num_str = ticker.replace(".TW","").replace(".TWO","")
+                news_txt = get_stock_news(name, _num_str)
+                news_section = ("\n近期新聞（請根據以下標題撰寫【新聞】段落）：\n" + news_txt) if news_txt else "\n（無法取得近期新聞，【新聞】段落請說明無法取得即時資訊）"
+                prompt=("[推薦股] "+name+"("+ticker+") | 現價"+str(price)+" | RSI"+str(round(ind.get("rsi",0),0))+" MACD"+str(round(ind.get("macd",0),2))+" K"+str(round(ind.get("k",0),0))+" 20MA"+str(round(ma20,0))+" | "+inst_txt+" | 盤中:"+("開高走低" if bearish else "正常")+" 你是台股分析師，數據已給你，禁止重複報價，今天日期是 "+str(datetime.date.today())+"，繁體中文，每個段落獨立，請輸出：【結論】一句話操作建議 【走勢】技術面偏多或偏空關鍵支撐壓力 【理由】進場依據或等待條件 【新聞】根據下方提供的新聞標題做重點摘要，勿自行捏造" + news_section)
                 st.session_state[ai_key]=call_ai(prompt)
     if st.session_state.get("skp_"+ticker): show_kline(ticker)
     if ai_key in st.session_state:
@@ -789,7 +808,15 @@ def render_stock_card(r):
                 rsi_v=str(ind.get("rsi","-")); macd_v=str(round(ind.get("macd",0),3))
                 k_v=str(ind.get("k","-")); d_v=str(ind.get("d","-")); ma_v=str(ind.get("ma20","-")); atr_v=str(round(ind.get("atr",0),2))
                 inst_disp=("法人買超"+str(round(inst,1))+"億") if inst>0 else "法人小幅參與"
-                prompt=("[持股] "+name+"("+str(ticker)+") | 現價"+str(price)+" 成本"+str(cost)+" 損益"+str(round(pnl_pct,1))+"% | RSI "+rsi_v+" K "+k_v+" | "+inst_disp+"\n你是台股分析師，數據已給你，禁止重複報價，今天日期是 "+str(datetime.date.today())+"，繁體中文，請完整輸出，每個段落獨立換行：\n【結論】一句話說明現在操作建議\n【走勢】技術面偏多或偏空，關鍵支撐壓力\n【理由】為何適合或不適合現在操作\n【新聞】只引用近3個月內真實新聞，寫明月份，嚴禁捏造"+(" (ETF:配息/績效分析)" if is_etf else ""))
+                _num_str2 = str(ticker).replace(".TW","").replace(".TWO","") if ticker else ""
+                news_txt2 = get_stock_news(name, _num_str2) if _num_str2 and not is_etf else ""
+                if is_etf:
+                    news_section2 = "\n（ETF請分析近期配息與績效表現）"
+                elif news_txt2:
+                    news_section2 = "\n近期新聞（請根據以下標題撰寫【新聞】段落）：\n" + news_txt2
+                else:
+                    news_section2 = "\n（無法取得近期新聞，【新聞】段落請說明無法取得即時資訊）"
+                prompt=("[持股] "+name+"("+str(ticker)+") | 現價"+str(price)+" 成本"+str(cost)+" 損益"+str(round(pnl_pct,1))+"% | RSI "+rsi_v+" K "+k_v+" | "+inst_disp+"\n你是台股分析師，數據已給你，禁止重複報價，今天日期是 "+str(datetime.date.today())+"，繁體中文，請完整輸出，每個段落獨立換行：\n【結論】一句話說明現在操作建議\n【走勢】技術面偏多或偏空，關鍵支撐壓力\n【理由】為何適合或不適合現在操作\n【新聞】根據下方提供的新聞標題做重點摘要，勿自行捏造" + news_section2)
                 st.session_state[ai_key]=call_ai(prompt)
     if st.session_state.get(ai_key):
         with st.expander("🤖 AI分析（"+name+"）", expanded=True):
@@ -1014,7 +1041,9 @@ def main():
                         k_v=str(sq_ind.get("k","-")) if sq_ind else "-"
                         ma_v=str(sq_ind.get("ma20","-")) if sq_ind else "-"
                         gain_v=str(sq_ind.get("today_gain","—")) if sq_ind else "-"
-                        prompt="[查股] "+sq_name+"("+sq_ticker+") 現價"+str(sq_price)+" RSI"+rsi_v+" MACD"+macd_v+" K"+k_v+" MA20"+ma_v+" 今漲"+gain_v+"% 你是台股分析師數據已給你禁止重複報價今天日期是 "+str(datetime.date.today())+" 繁體中文完整輸出每段獨立：【結論】一句話操作建議 【走勢】技術面偏多偏空關鍵支撐壓力 【理由】進場依據或等待條件 【新聞】只引用近3個月內真實新聞寫明月份嚴禁捏造"
+                        news_txt3 = get_stock_news(sq_name, _sq_num)
+                        news_section3 = ("\n近期新聞（請根據以下標題撰寫【新聞】段落）：\n" + news_txt3) if news_txt3 else "\n（無法取得近期新聞，【新聞】段落請說明無法取得即時資訊）"
+                        prompt=("[查股] "+sq_name+"("+sq_ticker+") 現價"+str(sq_price)+" RSI"+rsi_v+" MACD"+macd_v+" K"+k_v+" MA20"+ma_v+" 今漲"+gain_v+"% 你是台股分析師數據已給你禁止重複報價今天日期是 "+str(datetime.date.today())+" 繁體中文完整輸出每段獨立：【結論】一句話操作建議 【走勢】技術面偏多偏空關鍵支撐壓力 【理由】進場依據或等待條件 【新聞】根據下方提供的新聞標題做重點摘要勿自行捏造" + news_section3)
                         st.session_state[sq_ai_key] = call_ai(prompt)
                 if st.session_state.get(sq_ai_key):
                     with st.expander("🤖 AI分析（"+sq_name+"）", expanded=True):
