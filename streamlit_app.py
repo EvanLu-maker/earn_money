@@ -54,6 +54,8 @@ div[data-testid="stExpander"]>details>summary{font-size:0.88rem!important;font-w
 .pick-info{font-size:0.75rem;color:#8b949e;margin-top:3px;}
 .pick-entry{color:#79c0ff;font-weight:600;font-size:0.82rem;margin-top:5px;}
 .pick-atr{background:#1a2233;border-radius:4px;padding:3px 7px;font-size:0.7rem;color:#58a6ff;margin-top:3px;display:inline-block;}
+.nowrap-cols > div[data-testid="stHorizontalBlock"] {flex-wrap:nowrap!important;}
+.fav-tag{display:inline-block;background:#1f2e40;border:1px solid #1f6feb;border-radius:12px;padding:2px 10px;font-size:0.75rem;color:#79c0ff;margin:2px 3px;cursor:pointer;}
 </style>
 """, unsafe_allow_html=True)
 
@@ -994,6 +996,47 @@ def main():
                         st.rerun()
             elif not _need_manual:
                 st.error("❌ 解析失敗，可能欄位設定不符，請清除欄位記憶後重試")
+        # --- 手動填入持股 ---
+        with st.expander("✏️ 手動填入持股（不想用CSV）", expanded=False):
+            st.caption("填入代號（如 2330）、名稱、成本、股數，可多筆")
+            _m_rows = st.session_state.get('manual_rows', [{}])
+            _new_rows = []
+            for _ri, _row in enumerate(_m_rows):
+                _mc1,_mc2,_mc3,_mc4,_mc5 = st.columns([2,2,2,2,1], gap="small")
+                with _mc1: _ticker_in = st.text_input("代號", value=_row.get('ticker',''), key=f"mt_{_ri}", label_visibility="collapsed", placeholder="代號 2330")
+                with _mc2: _name_in = st.text_input("名稱", value=_row.get('name',''), key=f"mn_{_ri}", label_visibility="collapsed", placeholder="名稱 台積電")
+                with _mc3: _cost_in = st.text_input("成本", value=_row.get('cost',''), key=f"mc_{_ri}", label_visibility="collapsed", placeholder="成本 550")
+                with _mc4: _shares_in = st.text_input("股數", value=_row.get('shares',''), key=f"ms_{_ri}", label_visibility="collapsed", placeholder="股數 1000")
+                with _mc5:
+                    if st.button("✕", key=f"mdel_{_ri}", help="刪除此行"):
+                        continue
+                _new_rows.append({'ticker':_ticker_in,'name':_name_in,'cost':_cost_in,'shares':_shares_in})
+            st.session_state['manual_rows'] = _new_rows
+            _madd, _mload = st.columns(2, gap="small")
+            with _madd:
+                if st.button("＋ 新增一行", use_container_width=True, key="madd"):
+                    st.session_state['manual_rows'].append({})
+                    st.rerun()
+            with _mload:
+                if st.button("✅ 載入持股", use_container_width=True, key="mload"):
+                    _ms = []
+                    for _r in _new_rows:
+                        _n = _r.get('name','').strip() or _r.get('ticker','').strip()
+                        try: _c = float(_r.get('cost','').replace(',',''))
+                        except: continue
+                        try: _sh = float(_r.get('shares','').replace(',',''))
+                        except: continue
+                        if _n and _c>0 and _sh>0:
+                            _ms.append({"name":_n,"shares":_sh,"cost":_c})
+                    if _ms:
+                        existing = st.session_state.get('portfolio', [])
+                        merged = {s['name']:s for s in existing}
+                        for s in _ms: merged[s['name']] = s
+                        st.session_state['portfolio'] = list(merged.values())
+                        st.success(f"✅ 已載入 {len(_ms)} 筆手動持股")
+                        st.rerun()
+                    else:
+                        st.warning("請填入至少一筆完整資料（名稱/代號、成本、股數）")
         cur_port=st.session_state.get("portfolio",[])
         if cur_port:
             res_t0=analyze_portfolio(cur_port)
@@ -1079,6 +1122,11 @@ def main():
                         render_pick_card(p)
     with tab3:
         st.caption("輸入股票代碼（如 2330）或名稱（如 台積電）— 資料來源：Yahoo Finance")
+        # --- 最愛清單顯示 ---
+        _favs = st.session_state.get('favorites', [])
+        if _favs:
+            st.markdown('<div style="margin-bottom:6px">' + ''.join(['<span class="fav-tag">⭐ '+f["name"]+'</span>' for f in _favs]) + '</div>', unsafe_allow_html=True)
+
         sq_col1, sq_col2 = st.columns([4,1])
         with sq_col1:
             sq_input = st.text_input("", placeholder="輸入代碼或名稱，例：2330 或 台積電", label_visibility="collapsed", key="sq_input")
@@ -1127,6 +1175,18 @@ def main():
                 else:
                     st.warning("無法取得技術指標（資料不足）")
                 # K-line
+                # --- 最愛清單 ---
+                _fav_key = sq_ticker
+                _favs = st.session_state.get('favorites', [])
+                _is_faved = any(f['ticker']==_fav_key for f in _favs)
+                if _is_faved:
+                    if st.button("⭐ 移出最愛", key="fav_rm_"+sq_ticker, use_container_width=False):
+                        st.session_state['favorites'] = [f for f in _favs if f['ticker']!=_fav_key]
+                        st.rerun()
+                else:
+                    if st.button("☆ 加入最愛", key="fav_add_"+sq_ticker, use_container_width=False):
+                        st.session_state.setdefault('favorites',[]).append({"ticker":sq_ticker,"name":sq_name,"price":sq_price})
+                        st.rerun()
                 sq_kline_key = "sq_kline_"+sq_ticker
                 if st.button("📈 顯示K線圖", key="sq_kbtn_"+sq_ticker):
                     st.session_state[sq_kline_key] = not st.session_state.get(sq_kline_key, False)
@@ -1201,13 +1261,11 @@ def main():
             'API Key', value=api_key_val, type='password',
             placeholder=provider_hints.get(selected_provider, '請輸入 API Key')
         )
-        st.markdown('<div style="display:flex;gap:8px;margin-bottom:8px">',unsafe_allow_html=True)
-        _col1,_col2=st.columns(2)
-        with _col1:
-            _do_save=st.button('💾 儲存',use_container_width=True,key='api_save_btn')
-        with _col2:
-            _do_clear=st.button('🗑️ 清除',use_container_width=True,key='api_clear_btn')
-        st.markdown('</div>',unsafe_allow_html=True)
+        _btn_c1, _btn_c2 = st.columns(2, gap="small")
+        with _btn_c1:
+            _do_save = st.button("💾 儲存", use_container_width=True, key="api_save_btn")
+        with _btn_c2:
+            _do_clear = st.button("🗑️ 清除", use_container_width=True, key="api_clear_btn")
         if _do_save:
             if api_key_input.strip():
                 st.session_state['user_api_provider'] = selected_provider
