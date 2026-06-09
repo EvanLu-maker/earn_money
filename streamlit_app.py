@@ -54,7 +54,7 @@ div[data-testid="stExpander"]>details>summary{font-size:0.88rem!important;font-w
 .pick-info{font-size:0.75rem;color:#8b949e;margin-top:3px;}
 .pick-entry{color:#79c0ff;font-weight:600;font-size:0.82rem;margin-top:5px;}
 .pick-atr{background:#1a2233;border-radius:4px;padding:3px 7px;font-size:0.7rem;color:#58a6ff;margin-top:3px;display:inline-block;}
-.nowrap-cols > div[data-testid="stHorizontalBlock"] {flex-wrap:nowrap!important;}
+div[data-testid="stHorizontalBlock"]>div[data-testid="stColumn"]{min-width:0!important;}
 .fav-tag{display:inline-block;background:#1f2e40;border:1px solid #1f6feb;border-radius:12px;padding:2px 10px;font-size:0.75rem;color:#79c0ff;margin:2px 3px;cursor:pointer;}
 
 .btn-row > div[data-testid="stElementContainer"]{margin:0!important;}
@@ -1304,7 +1304,7 @@ def main():
             'API Key', value=api_key_val, type='password',
             placeholder=provider_hints.get(selected_provider, '請輸入 API Key')
         )
-        _btn_c1, _btn_c2 = st.columns(2)
+        _btn_c1, _btn_c2 = st.columns(2, gap="small")
         with _btn_c1:
             _do_save = st.button("💾 儲存", use_container_width=True, key="api_save_btn")
         with _btn_c2:
