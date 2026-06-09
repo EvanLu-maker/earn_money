@@ -74,20 +74,23 @@ def get_stock_news(name, ticker_num, max_items=4):
         return ""
 
 def get_ai_client():
+    # 優先讀取用戶在 APP 內輸入的 API Key
+    if st.session_state.get('user_api_key') and st.session_state.get('user_api_provider'):
+        return st.session_state['user_api_provider'], st.session_state['user_api_key']
+    # 其次讀取 Streamlit Cloud secrets
     try:
-        key = st.secrets.get("ANTHROPIC_API_KEY","")
-        if key and key.startswith("sk-ant"): return "claude", key
+        key = st.secrets.get('ANTHROPIC_API_KEY','')
+        if key and key.startswith('sk-ant'): return 'claude', key
     except: pass
     try:
-        key = st.secrets.get("OPENAI_API_KEY","")
-        if key: return "openai", key
+        key = st.secrets.get('OPENAI_API_KEY','')
+        if key: return 'openai', key
     except: pass
     try:
-        key = st.secrets.get("GEMINI_API_KEY","")
-        if key: return "gemini", key
+        key = st.secrets.get('GEMINI_API_KEY','')
+        if key: return 'gemini', key
     except: pass
     return None, None
-
 def call_ai(prompt):
     provider, key = get_ai_client()
     if not provider: return "未設定 API Key"
@@ -884,7 +887,7 @@ def main():
         +'</div>',unsafe_allow_html=True)
     # All-in-one tab bar: 匯入 | 持有股 | 推薦 (同一行)
     n_port=len(st.session_state.get("portfolio",[]))
-    tab0,tab1,tab2,tab3=st.tabs(["⬆️ 匯入("+str(n_port)+"筆)" if n_port>0 else "⬆️ 匯入","📁 持有股","⭐ 推薦","🔍 查股"])
+    tab0,tab1,tab2,tab3,tab4=st.tabs(["⬆️ 匯入("+str(n_port)+"筆)" if n_port>0 else "⬆️ 匯入","📁 持有股","⭐ 推薦","🔍 查股","⚙️ 設定"])
     with tab0:
         st.caption("券商匯出 CSV | 只讀名稱/股數/成交均價 | 市價即時抓")
         uploaded=st.file_uploader("上傳持股CSV",type=["csv","txt"],label_visibility="collapsed",key="csv_upload")
@@ -1058,6 +1061,69 @@ def main():
                                 st.markdown('<span style="color:'+_cur2+';font-weight:700;font-size:0.95rem;">'+_p2+'</span>',unsafe_allow_html=True)
                             elif _p2.strip():
                                 st.markdown('<div style="color:#c9d1d9;font-size:0.88rem;line-height:1.6;margin:4px 0 12px 0;padding-left:8px;border-left:2px solid '+_cur2+';">'+_p2.strip()+'</div>',unsafe_allow_html=True)
+
+
+    with tab4:
+        st.markdown('### ⚙️ 設定')
+        st.markdown('#### 🔑 API Key 設定')
+        import streamlit.components.v1 as components
+        provider_choices = ['claude (Claude AI)', 'openai (ChatGPT)', 'gemini (Google 免費)']
+        provider_map = {'claude (Claude AI)': 'claude', 'openai (ChatGPT)': 'openai', 'gemini (Google 免費)': 'gemini'}
+        cur_provider = st.session_state.get('user_api_provider', 'gemini')
+        display_choices = list(provider_map.keys())
+        default_idx = 2
+        for i, (kk, vv) in enumerate(provider_map.items()):
+            if vv == cur_provider:
+                default_idx = i
+                break
+        selected_display = st.selectbox('🤖 AI 提供商', display_choices, index=default_idx)
+        selected_provider = provider_map[selected_display]
+        api_key_val = st.session_state.get('user_api_key', '')
+        provider_hints = {
+            'claude': '格式: sk-ant-api03-...',
+            'openai': '格式: sk-proj-...',
+            'gemini': '格式: AIzaSy... (免費)'
+        }
+        api_key_input = st.text_input(
+            'API Key', value=api_key_val, type='password',
+            placeholder=provider_hints.get(selected_provider, '請輸入 API Key')
+        )
+        col_s, col_c = st.columns([1, 1])
+        with col_s:
+            if st.button('💾 儲存', use_container_width=True):
+                if api_key_input.strip():
+                    st.session_state['user_api_provider'] = selected_provider
+                    st.session_state['user_api_key'] = api_key_input.strip()
+                    safe_k = api_key_input.strip().replace("'", "\\'")
+                    safe_p = selected_provider
+                    components.html(f"""<script>try{{localStorage.setItem('wap_provider','{safe_p}');localStorage.setItem('wap_key','{safe_k}');}}catch(e){{}}</script>""", height=0)
+                    st.success(f'✅ 已儲存！{selected_provider.upper()}')
+                else:
+                    st.warning('請先輸入 API Key')
+        with col_c:
+            if st.button('🗑️ 清除', use_container_width=True):
+                st.session_state.pop('user_api_provider', None)
+                st.session_state.pop('user_api_key', None)
+                components.html("""<script>try{localStorage.removeItem('wap_provider');localStorage.removeItem('wap_key');}catch(e){}</script>""", height=0)
+                st.info('已清除。')
+        if st.session_state.get('user_api_key'):
+            k = st.session_state['user_api_key']
+            masked = k[:6] + '•'*8 + k[-4:] if len(k) > 10 else '•'*len(k)
+            st.info(f'🟢 目前：{st.session_state.get("user_api_provider","").upper()} | {masked}')
+        else:
+            st.warning('⚠️ 尚未設定 API Key')
+        st.markdown('---')
+        st.markdown('#### 📁 對帳單（記住上次）')
+        if st.session_state.get('uploaded_csv_name'):
+            st.success(f'📎 目前檔案：{st.session_state["uploaded_csv_name"]}')
+        uploaded_setting = st.file_uploader('選擇 CSV 對帳單', type=['csv'], key='setting_upload')
+        if uploaded_setting is not None:
+            st.session_state['uploaded_csv'] = uploaded_setting
+            st.session_state['uploaded_csv_name'] = uploaded_setting.name
+            st.success(f'✅ 已記住：{uploaded_setting.name}')
+        st.markdown('---')
+        st.markdown('#### 📱 安裝到手機')
+        st.info('在手機瀏覽器打開此 APP 後，點瀏覽器選單 → 新增到主螢幕 / 安裝應用程式，即可安裝到手機。')
 
 if __name__ == "__main__":
     main()
