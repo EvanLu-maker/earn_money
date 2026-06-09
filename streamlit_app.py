@@ -346,9 +346,51 @@ def generate_daily_brief(mkt, us, portfolio):
     today=datetime.date.today().strftime("%m/%d")
     prompt=today+" 盤前：S&P500 "+s(sp)+" 道瓊 "+s(dj)+" QQQ "+s(qq)+" NVDA "+s(nv)+" AMD "+s(am)+" SMH "+s(sm)+" TSM ADR "+s(tsm)+" 台指昨日 "+s(mkt.get("台指",{}).get("change_pct",0))+" 持股："+hs+" 。請用繁體中文寫3-5句盤前操作總結，直接定調今日盤勢偏多偏空，點出哪個數據最影響持股，給出今日操作主軸（直接點名持股怎麼做），風格像老手操盤手，禁止免責聲明和廢話。"
     return call_ai(prompt)
-def parse_csv(f):
+def detect_csv_columns(f):
+    """Read header row and return (headers, rows) for column mapping UI."""
     try: content=f.read().decode("utf-8-sig")
     except: content=f.read().decode("big5",errors="ignore")
+    rows=[r for r in csv_module.reader(io.StringIO(content)) if any(c.strip() for c in r)]
+    if not rows: return [],[],[]
+    header=rows[0]
+    data_rows=rows[1:] if len(rows)>1 else []
+    return header,data_rows,content
+
+def auto_guess_cols(header):
+    """Guess column indices from header names. Returns dict or None if unclear."""
+    NAME_KW=["名稱","股票名稱","股票","品名","有價證券名稱","商品名稱"]
+    SHARES_KW=["股數","持有股數","庫存股數","數量","持股數","持有數量","實際庫存"]
+    COST_KW=["均價","成本","成交均價","平均成本","均買價","每股成本","交易均價","現金成本","買進均價"]
+    def find(kws):
+        for kw in kws:
+            for i,h in enumerate(header):
+                if kw in h: return i
+        return None
+    ni=find(NAME_KW); si=find(SHARES_KW); ci=find(COST_KW)
+    return {"name_col":ni,"shares_col":si,"cost_col":ci}
+
+def parse_csv_with_map(content,col_map):
+    """Parse CSV rows using given column mapping."""
+    stocks=[]
+    name_col=col_map["name_col"]; shares_col=col_map["shares_col"]; cost_col=col_map["cost_col"]
+    needed=max(name_col,shares_col,cost_col)+1
+    for row in csv_module.reader(io.StringIO(content)):
+        if len(row)<needed: continue
+        name=row[name_col].strip().strip('"')
+        if not name or name in ["股票名稱","名稱","品名","有價證券名稱"] or name.startswith("#"): continue
+        try: shares=float(str(row[shares_col]).replace(",","").strip().strip('"'))
+        except: continue
+        try: cost=float(str(row[cost_col]).replace(",","").strip().strip('"'))
+        except: continue
+        if shares>0 and cost>0: stocks.append({"name":name,"shares":shares,"cost":cost})
+    return stocks
+
+def parse_csv(f,col_map=None):
+    """Legacy: parse with fixed cols (name=0,shares=1,cost=4) or given map."""
+    try: content=f.read().decode("utf-8-sig")
+    except: content=f.read().decode("big5",errors="ignore")
+    if col_map:
+        return parse_csv_with_map(content,col_map)
     stocks=[]
     for row in csv_module.reader(io.StringIO(content)):
         if len(row)<5: continue
@@ -890,9 +932,14 @@ def main():
     n_port=len(st.session_state.get("portfolio",[]))
     tab0,tab1,tab2,tab3,tab4=st.tabs(["⬆️ 匯入("+str(n_port)+"筆)" if n_port>0 else "⬆️ 匯入","📁 持有股","⭐ 推薦","🔍 查股","⚙️ 設定"])
     with tab0:
+        # --- Smart CSV Import UI ---
         if st.session_state.get('uploaded_csv_name'):
-            st.info('📎 目前持倉：'+st.session_state['uploaded_csv_name'])
-        uploaded=st.file_uploader("券商匯出 CSV | 只讀名稱/股數/成交均價 | 市值即時抓",type=["csv","txt"],label_visibility="visible",key="csv_upload")
+            st.caption('📎 目前持倉：'+st.session_state['uploaded_csv_name'])
+        uploaded=st.file_uploader(
+            "上傳對帳單 CSV（任何券商皆可）",
+            type=["csv","txt"],label_visibility="visible",key="csv_upload",
+            help="支援永豐、玉山、元大、富邦、國泰...等各家券商匯出格式，上傳後自動偵測欄位"
+        )
         _csv_src=uploaded
         if not _csv_src and st.session_state.get('uploaded_csv') is not None:
             try:
@@ -900,7 +947,40 @@ def main():
                 _csv_src=st.session_state['uploaded_csv']
             except: pass
         if _csv_src:
-            stocks=parse_csv(_csv_src)
+            # Detect columns
+            _csv_src.seek(0)
+            _header,_data_rows,_content=detect_csv_columns(_csv_src)
+            _col_map=st.session_state.get('col_map')
+            _auto=auto_guess_cols(_header) if _header else None
+            _need_manual=not _col_map and (not _auto or any(v is None for v in _auto.values()))
+            if _col_map:
+                # Already have remembered mapping - use it
+                stocks=parse_csv_with_map(_content,_col_map)
+            elif _auto and all(v is not None for v in _auto.values()):
+                # Auto-detected successfully
+                stocks=parse_csv_with_map(_content,_auto)
+                st.session_state['col_map']=_auto
+            else:
+                # Need manual mapping
+                stocks=[]
+                if _header:
+                    st.info("📋 無法自動辨識欄位，請選擇一次，之後自動記憶")
+                    _opts=["（請選擇）"]+[f"第{i+1}欄：{h}" for i,h in enumerate(_header)]
+                    _cn=st.selectbox("📌 股票名稱 欄位",_opts,key="map_name")
+                    _cs=st.selectbox("📌 持有股數 欄位",_opts,key="map_shares")
+                    _cc=st.selectbox("📌 成本/均價 欄位",_opts,key="map_cost")
+                    if st.button("✅ 確認欄位對應",use_container_width=True):
+                        if "（請選擇）" in [_cn,_cs,_cc]:
+                            st.warning("請選擇所有欄位")
+                        else:
+                            _mi=_opts.index(_cn)-1; _si=_opts.index(_cs)-1; _ci=_opts.index(_cc)-1
+                            _new_map={"name_col":_mi,"shares_col":_si,"cost_col":_ci}
+                            st.session_state['col_map']=_new_map
+                            stocks=parse_csv_with_map(_content,_new_map)
+                    else:
+                        st.stop()
+                else:
+                    st.error("❌ 無法讀取 CSV，請確認檔案格式")
             if stocks:
                 st.session_state["portfolio"]=stocks
                 portfolio=stocks
@@ -908,7 +988,12 @@ def main():
                     st.session_state['uploaded_csv']=uploaded
                     st.session_state['uploaded_csv_name']=uploaded.name
                 st.success("✅ 已載入 "+str(len(stocks))+" 筆持股："+", ".join([s["name"] for s in stocks]))
-            else: st.error("❌ 解析失敗，請確認格式：名稱,股數,,成本")
+                if _col_map or (_auto and all(v is not None for v in _auto.values())):
+                    if st.button("🗑 清除欄位記憶（換券商時用）",key="clr_colmap"):
+                        st.session_state.pop('col_map',None)
+                        st.rerun()
+            elif not _need_manual:
+                st.error("❌ 解析失敗，可能欄位設定不符，請清除欄位記憶後重試")
         cur_port=st.session_state.get("portfolio",[])
         if cur_port:
             res_t0=analyze_portfolio(cur_port)
@@ -1099,6 +1184,13 @@ def main():
                 break
         selected_display = st.selectbox('🤖 AI 提供商', display_choices, index=default_idx)
         selected_provider = provider_map[selected_display]
+        _api_links = {
+            'gemini': '🔗 [免費申請 Gemini Key](https://aistudio.google.com/app/apikey)',
+            'openai': '🔗 [申請 OpenAI Key](https://platform.openai.com/api-keys)',
+            'claude': '🔗 [申請 Claude Key](https://console.anthropic.com/settings/keys)'
+        }
+        if selected_provider in _api_links:
+            st.caption(_api_links[selected_provider])
         api_key_val = st.session_state.get('user_api_key', '')
         provider_hints = {
             'claude': '格式: sk-ant-api03-...',
@@ -1109,24 +1201,28 @@ def main():
             'API Key', value=api_key_val, type='password',
             placeholder=provider_hints.get(selected_provider, '請輸入 API Key')
         )
-        col_s, col_c = st.columns([1, 1])
-        with col_s:
-            if st.button('💾 儲存', use_container_width=True):
-                if api_key_input.strip():
-                    st.session_state['user_api_provider'] = selected_provider
-                    st.session_state['user_api_key'] = api_key_input.strip()
-                    safe_k = api_key_input.strip().replace("'", "\\'")
-                    safe_p = selected_provider
+        st.markdown('<div style="display:flex;gap:8px;margin-bottom:8px">',unsafe_allow_html=True)
+        _col1,_col2=st.columns(2)
+        with _col1:
+            _do_save=st.button('💾 儲存',use_container_width=True,key='api_save_btn')
+        with _col2:
+            _do_clear=st.button('🗑️ 清除',use_container_width=True,key='api_clear_btn')
+        st.markdown('</div>',unsafe_allow_html=True)
+        if _do_save:
+            if api_key_input.strip():
+                st.session_state['user_api_provider'] = selected_provider
+                st.session_state['user_api_key'] = api_key_input.strip()
+                safe_k = api_key_input.strip().replace("'", "\'")
+                safe_p = selected_provider
                     components.html(f"""<script>try{{localStorage.setItem('wap_provider','{safe_p}');localStorage.setItem('wap_key','{safe_k}');}}catch(e){{}}</script>""", height=0)
-                    st.success(f'✅ 已儲存！{selected_provider.upper()}')
-                else:
-                    st.warning('請先輸入 API Key')
-        with col_c:
-            if st.button('🗑️ 清除', use_container_width=True):
-                st.session_state.pop('user_api_provider', None)
-                st.session_state.pop('user_api_key', None)
+                st.success(f'✅ 已儲存！{selected_provider.upper()}')
+            else:
+                st.warning('請先輸入 API Key')
+        if _do_clear:
+            st.session_state.pop('user_api_provider', None)
+            st.session_state.pop('user_api_key', None)
                 components.html("""<script>try{localStorage.removeItem('wap_provider');localStorage.removeItem('wap_key');}catch(e){}</script>""", height=0)
-                st.info('已清除。')
+            st.info('已清除。')
         if st.session_state.get('user_api_key'):
             k = st.session_state['user_api_key']
             masked = k[:6] + '•'*8 + k[-4:] if len(k) > 10 else '•'*len(k)
