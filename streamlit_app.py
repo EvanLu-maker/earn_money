@@ -56,7 +56,7 @@ div[data-testid="stExpander"]>details>summary{font-size:0.88rem!important;font-w
 .pick-atr{background:#1a2233;border-radius:4px;padding:3px 7px;font-size:0.7rem;color:#58a6ff;margin-top:3px;display:inline-block;}
 .nowrap-cols > div[data-testid="stHorizontalBlock"] {flex-wrap:nowrap!important;}
 .fav-tag{display:inline-block;background:#1f2e40;border:1px solid #1f6feb;border-radius:12px;padding:2px 10px;font-size:0.75rem;color:#79c0ff;margin:2px 3px;cursor:pointer;}
-.btn-row > div[data-testid="stVerticalBlock"]{display:flex;flex-direction:row;gap:8px;}.btn-row > div[data-testid="stVerticalBlock"] > div{flex:1;min-width:0;}
+
 .btn-row > div[data-testid="stElementContainer"]{margin:0!important;}
 </style>
 """, unsafe_allow_html=True)
@@ -151,7 +151,7 @@ NAME_TO_TICKER = {
     "緯穎":"6669.TW","英業達":"2356.TW","技嘉":"2376.TW","微星":"2377.TW","健鼎":"3044.TWO",
     "主動統一升級50":"00403A.TW","元大高股息":"0056.TW","國泰永續高股息":"00878.TW",
     "群益台灣精選高息":"00919.TW","元大台灣50":"0050.TW","富邦台50":"006208.TW",
-    "永豐台灣ESG":"00888.TW","中信關鍵半導體":"00891.TW",
+    "永豐台灣ESG":"00888.TW","中信關鍵半導體":"00891.TW","景碩":"3189.TW","南電":"8046.TW","台光電":"6269.TW","燿華":"2367.TW","臻鼎-KY":"4958.TWO",
 }
 ETF_LIST = {"00403A.TW","0056.TW","00878.TW","00919.TW","0050.TW","006208.TW","00888.TW","00891.TW"}
 SECTOR_GROUPS={"AI半導體":["台積電","聯發科","日月光投控","矽力-KY","世界","聯電","力積電","群聯","瑞昱"],"PCB電路板":["欣興","金像電","臻鼎-KY","健鼎","耀華","台光電","南電","燿華"],"面板顯示":["群創","友達","彩晶"],"電源管理":["台達電","光寶科"],"組裝代工":["鴻海","廣達","緯創","英業達","仁寶","和碩"]}
@@ -1189,11 +1189,26 @@ def main():
                 sq_price = sq_ind.get("price",0) if sq_ind else 0
                 sq_name = sq_query if sq_query in NAME_TO_TICKER else sq_query
                 _sq_num = sq_ticker.replace(".TW","").replace(".TWO","")
-                # Data source note
-                st.markdown('<div style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:8px 12px;margin:4px 0;display:flex;justify-content:space-between;align-items:center;">'
-                    +'<span style="color:#e6edf3;font-weight:700;font-size:1rem;">'+sq_name+' <span style="color:#8b949e;font-size:0.75rem;">'+sq_ticker+'</span></span>'
-                    +'<span style="color:#3fb950;font-size:1.1rem;font-weight:800;">'+str(sq_price)+'</span>'
-                    +'</div>',unsafe_allow_html=True)
+                # ➕/⭐ header row
+                _fav_key = sq_ticker
+                _favs = st.session_state.get('favorites', [])
+                _is_faved = any(f['ticker']==_fav_key for f in _favs)
+                _sq_hdr_c1, _sq_hdr_c2 = st.columns([1, 9])
+                with _sq_hdr_c1:
+                    _fav_icon = "⭐" if _is_faved else "➕"
+                    if st.button(_fav_icon, key="fav_hdr_"+sq_ticker, use_container_width=True):
+                        if _is_faved:
+                            st.session_state['favorites'] = [f for f in _favs if f['ticker']!=_fav_key]
+                        else:
+                            st.session_state['favorites'] = _favs + [{"ticker":sq_ticker,"name":sq_name,"price":sq_price}]
+                        import json as _fjson2
+                        _cmpv1b.html("<script>localStorage.setItem('favorites','"+_fjson2.dumps(st.session_state['favorites']).replace("'","\'")+"');</script>",height=0)
+                        st.rerun()
+                with _sq_hdr_c2:
+                    st.markdown('<div style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:8px 12px;margin:4px 0;display:flex;justify-content:space-between;align-items:center;">'
+                        +'<span style="color:#e6edf3;font-weight:700;font-size:1rem;">'+sq_name+' <span style="color:#8b949e;font-size:0.75rem;">'+sq_ticker+'</span></span>'
+                        +'<span style="color:#3fb950;font-size:1.1rem;font-weight:800;">'+str(sq_price)+'</span>'
+                        +'</div>',unsafe_allow_html=True)
                 # Query links
                 st.markdown('<div style="display:flex;gap:8px;margin:4px 0;">'
                     +'<a href="https://tw.stock.yahoo.com/quote/'+_sq_num+'" target="_blank" style="background:#21262d;color:#58a6ff;border-radius:5px;padding:3px 9px;font-size:0.72rem;text-decoration:none;">📊 Yahoo</a>'
@@ -1214,38 +1229,7 @@ def main():
                 else:
                     st.warning("無法取得技術指標（資料不足）")
                 # K-line
-                # --- 最愛 & 觀察清單 ---
-                _fav_key = sq_ticker
-                _favs = st.session_state.get('favorites', [])
-                _wl3 = st.session_state.get('wl_tickers', [])
-                _is_faved = any(f['ticker']==_fav_key for f in _favs)
-                _is_wl = sq_name in _wl3 or sq_ticker.replace('.TW','').replace('.TWO','') in _wl3
-                _act_c1, _act_c2 = st.columns(2, gap="small")
-                with _act_c1:
-                    _fav_label = "⭐ 移出最愛" if _is_faved else "☆ 加入最愛"
-                    if st.button(_fav_label, key="fav_t2_"+sq_ticker, use_container_width=True):
-                        if _is_faved:
-                            st.session_state['favorites'] = [f for f in _favs if f['ticker']!=_fav_key]
-                        else:
-                            _new_favs = _favs + [{"ticker":sq_ticker,"name":sq_name,"price":sq_price}]
-                            st.session_state['favorites'] = _new_favs
-                        import json as _fjson2
-                        _cmpv1b.html("<script>localStorage.setItem('fav_stocks','"+_fjson2.dumps(st.session_state['favorites']).replace("'","\'")+"');</script>",height=0)
-                        st.rerun()
-                with _act_c2:
-                    _sq_num_short = sq_ticker.replace('.TW','').replace('.TWO','')
-                    _wl_label = "👁 移出觀察" if _is_wl else "＋ 加入觀察"
-                    if st.button(_wl_label, key="wl_t_"+sq_ticker, use_container_width=True):
-                        _cur_wl = list(_wl3)
-                        _wl_id = sq_name if sq_name not in _sq_num_short else _sq_num_short
-                        if _is_wl:
-                            _cur_wl = [x for x in _cur_wl if x!=sq_name and x!=_sq_num_short]
-                        else:
-                            _cur_wl.append(sq_name)
-                        st.session_state['wl_tickers'] = _cur_wl
-                        import json as _json4
-                        _cmpv1b.html("<script>localStorage.setItem('wl_tickers','"+_json4.dumps(_cur_wl).replace("'","\'")+"');</script>",height=0)
-                        st.rerun()
+                # (favorites managed by ➕ button above)
                 sq_kline_key = "sq_kline_"+sq_ticker
                 if st.button("📈 顯示K線圖", key="sq_kbtn_"+sq_ticker):
                     st.session_state[sq_kline_key] = not st.session_state.get(sq_kline_key, False)
@@ -1320,10 +1304,11 @@ def main():
             'API Key', value=api_key_val, type='password',
             placeholder=provider_hints.get(selected_provider, '請輸入 API Key')
         )
-        st.markdown('<div class="btn-row">', unsafe_allow_html=True)
-        _do_save = st.button("💾 儲存", use_container_width=True, key="api_save_btn")
-        _do_clear = st.button("🗑️ 清除", use_container_width=True, key="api_clear_btn")
-        st.markdown('</div>', unsafe_allow_html=True)
+        _btn_c1, _btn_c2 = st.columns(2)
+        with _btn_c1:
+            _do_save = st.button("💾 儲存", use_container_width=True, key="api_save_btn")
+        with _btn_c2:
+            _do_clear = st.button("🗑️ 清除", use_container_width=True, key="api_clear_btn")
         if _do_save:
             if api_key_input.strip():
                 st.session_state['user_api_provider'] = selected_provider
