@@ -889,22 +889,25 @@ def main():
     n_port=len(st.session_state.get("portfolio",[]))
     tab0,tab1,tab2,tab3,tab4=st.tabs(["⬆️ 匯入("+str(n_port)+"筆)" if n_port>0 else "⬆️ 匯入","📁 持有股","⭐ 推薦","🔍 查股","⚙️ 設定"])
     with tab0:
-        st.caption("券商匯出 CSV | 只讀名稱/股數/成交均價 | 市價即時抓")
-        uploaded=st.file_uploader("上傳持股CSV",type=["csv","txt"],label_visibility="collapsed",key="csv_upload")
+        if st.session_state.get('uploaded_csv_name'):
+            st.info('📎 目前持倉：'+st.session_state['uploaded_csv_name'])
+        uploaded=st.file_uploader("券商匯出 CSV | 只讀名稱/股數/成交均價 | 市值即時抓",type=["csv","txt"],label_visibility="visible",key="csv_upload")
         _csv_src=uploaded
         if not _csv_src and st.session_state.get('uploaded_csv') is not None:
             try:
                 st.session_state['uploaded_csv'].seek(0)
                 _csv_src=st.session_state['uploaded_csv']
             except: pass
-            if _csv_src:
-                stocks=parse_csv(_csv_src)
-                if stocks:
-                    st.session_state["portfolio"]=stocks
-                    portfolio=stocks
-                    st.success("✅ 已載入 "+str(len(stocks))+" 筆持股："+", ".join([s["name"] for s in stocks]))
-                else: st.error("❌ 解析失敗，請確認格式：名稱,股數,,,成本")
-        cur_port=st.session_state.get("portfolio",[])
+        if _csv_src:
+            stocks=parse_csv(_csv_src)
+            if stocks:
+                st.session_state["portfolio"]=stocks
+                portfolio=stocks
+                if uploaded:
+                    st.session_state['uploaded_csv']=uploaded
+                    st.session_state['uploaded_csv_name']=uploaded.name
+                st.success("✅ 已載入 "+str(len(stocks))+" 筆持股："+", ".join([s["name"] for s in stocks]))
+            else: st.error("❌ 解析失敗，請確認格式：名稱,股數,,成本")
         if cur_port:
             res_t0=analyze_portfolio(cur_port)
             tpnl=sum(r["pnl_amt"] for r in res_t0 if r.get("price_ok"))
@@ -1127,15 +1130,6 @@ def main():
             st.info(f'🟢 目前：{st.session_state.get("user_api_provider","").upper()} | {masked}')
         else:
             st.warning('⚠️ 尚未設定 API Key')
-        st.markdown('---')
-        st.markdown('#### 📁 對帳單（記住上次）')
-        if st.session_state.get('uploaded_csv_name'):
-            st.success(f'📎 目前檔案：{st.session_state["uploaded_csv_name"]}')
-        uploaded_setting = st.file_uploader('選擇 CSV 對帳單', type=['csv'], key='setting_upload')
-        if uploaded_setting is not None:
-            st.session_state['uploaded_csv'] = uploaded_setting
-            st.session_state['uploaded_csv_name'] = uploaded_setting.name
-            st.success(f'✅ 已記住：{uploaded_setting.name}')
         st.markdown('---')
         st.markdown('#### 📱 安裝到手機')
         st.info('在手機瀏覽器打開此 APP 後，點瀏覽器選單 → 新增到主螢幕 / 安裝應用程式，即可安裝到手機。')
