@@ -891,13 +891,19 @@ def main():
     with tab0:
         st.caption("券商匯出 CSV | 只讀名稱/股數/成交均價 | 市價即時抓")
         uploaded=st.file_uploader("上傳持股CSV",type=["csv","txt"],label_visibility="collapsed",key="csv_upload")
-        if uploaded:
-            stocks=parse_csv(uploaded)
-            if stocks:
-                st.session_state["portfolio"]=stocks
-                portfolio=stocks
-                st.success("✅ 已載入 "+str(len(stocks))+" 筆持股："+", ".join([s["name"] for s in stocks]))
-            else: st.error("❌ 解析失敗，請確認格式：名稱,股數,,,成本")
+        _csv_src=uploaded
+        if not _csv_src and st.session_state.get('uploaded_csv') is not None:
+            try:
+                st.session_state['uploaded_csv'].seek(0)
+                _csv_src=st.session_state['uploaded_csv']
+            except: pass
+            if _csv_src:
+                stocks=parse_csv(_csv_src)
+                if stocks:
+                    st.session_state["portfolio"]=stocks
+                    portfolio=stocks
+                    st.success("✅ 已載入 "+str(len(stocks))+" 筆持股："+", ".join([s["name"] for s in stocks]))
+                else: st.error("❌ 解析失敗，請確認格式：名稱,股數,,,成本")
         cur_port=st.session_state.get("portfolio",[])
         if cur_port:
             res_t0=analyze_portfolio(cur_port)
