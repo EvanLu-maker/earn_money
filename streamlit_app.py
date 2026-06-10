@@ -1,7 +1,7 @@
 # streamlit_app.py — 台股操盤 Pro
 # 製作者: Evan
-# 版本: v1.2.0
-# 更新: 2026-06-10 推薦頁修正(v1.0.1);動態載入官方上市櫃清單(v1.1.0);手機版UI優化-字級/對比/單行化(v1.2.0)
+# 版本: v1.3.0
+# 更新: 2026-06-10 推薦頁(v1.0.1);動態載入官方清單(v1.1.0);手機版UI(v1.2.0);查股文案精簡/持有股移收藏鈕/查股收藏鈕去框/盤前總結改手動/AI標籤去刺眼(v1.3.0)
 import streamlit as st
 import pandas as pd
 import yfinance as yf
@@ -63,6 +63,7 @@ div[data-testid="stHorizontalBlock"]>div[data-testid="stColumn"]{min-width:0!imp
 .fav-tag{display:inline-block;background:#1f2e40;border:1px solid #1f6feb;border-radius:12px;padding:2px 10px;font-size:0.75rem;color:#79c0ff;margin:2px 3px;cursor:pointer;}
 
 .btn-row > div[data-testid="stElementContainer"]{margin:0!important;}
+[class*="st-key-fav_hdr_"] button{border:none!important;background:transparent!important;box-shadow:none!important;padding:0 4px!important;font-size:1.05rem!important;}
 </style>
 """, unsafe_allow_html=True)
 
@@ -932,7 +933,7 @@ def render_stock_card(r):
 
 def main():
     provider,_=get_ai_client()
-    ai_label={"claude":"● Claude","openai":"● OpenAI","gemini":"● Gemini"}.get(provider,"需設定AI Key")
+    ai_label={"claude":"● Claude","openai":"● OpenAI","gemini":"● Gemini"}.get(provider,"● AI")
     now_str=datetime.datetime.now().strftime("%Y/%m/%d %H:%M")
     mkt=get_market_data()
     # Swipe gesture: left/right swipe to switch tabs
@@ -1098,9 +1099,8 @@ def main():
             cb1,cb2=st.columns([3,1])
             with cb1: st.markdown('<span style="color:#58a6ff;font-weight:700;font-size:0.85rem;">🌐 今日盤前AI總結</span>',unsafe_allow_html=True)
             with cb2:
-                if st.button("🔄",key="ref_brief",help="重新生成"):
-                    for k in [bk,dk]: st.session_state.pop(k,None)
-            if bk not in st.session_state or st.session_state.get(dk)!=td:
+                _gen_brief=st.button("生成",key="ref_brief",help="產生今日盤前AI總結")
+            if _gen_brief:
                 with st.spinner("AI分析中..."):
                     us=get_us_overnight()
                     st.session_state[bk]=generate_daily_brief(mkt,us,cur_port)
@@ -1144,20 +1144,8 @@ def main():
                         pnl_s="+" if r["pnl_pct"]>=0 else ""
                         pnl_clr="#3fb950" if r["pnl_pct"]>=0 else "#f85149"
                         pnl_disp=(pnl_s+str(int(r["pnl_amt"]))+"("+pnl_s+str(round(r["pnl_pct"],1))+"%)"+" | "+str(r["price"])) if r.get("price_ok") else "⚙️"
-                        _r_favs=st.session_state.get('favorites',[])
-                        _r_faved=any(f.get('ticker')==r.get('ticker') or f.get('name')==r['name'] for f in _r_favs)
-                        _fav_icon="⭐" if _r_faved else "➕"
-                        _hdr_c1,_hdr_c2=st.columns([1,10],gap="small")
-                        with _hdr_c1:
-                            if st.button(_fav_icon,key="fav_t_"+r["name"],help="加入/移出最愛"):
-                                if _r_faved:
-                                    st.session_state['favorites']=[f for f in _r_favs if f.get('name')!=r['name']]
-                                else:
-                                    st.session_state.setdefault('favorites',[]).append({"ticker":r.get("ticker",""),"name":r["name"],"price":r.get("price",0)})
-                                st.rerun()
-                        with _hdr_c2:
-                            with st.expander(r["name"]+" | "+pnl_disp,expanded=False):
-                                render_stock_card(r)
+                        with st.expander(r["name"]+" | "+pnl_disp,expanded=False):
+                            render_stock_card(r)
     with tab2:
         st.caption("依技術評分排序 | 盤勢轉弱時不顯示買進訊號")
         with st.spinner("掃描推薦中..."):
@@ -1181,7 +1169,7 @@ def main():
                     with st.expander(p["name"]+"  "+p["ticker"]+"  +"+str(p["buy_score"])+"分",expanded=False):
                         render_pick_card(p)
     with tab3:
-        st.caption("輸入股票代碼（如 2330）或名稱（如 台積電）— 資料來源：Yahoo Finance")
+        st.caption("輸入股票代碼（如 2330）或名稱（如 台積電）")
         # --- 最愛清單 (localStorage持久) ---
         import streamlit.components.v1 as _cmpv1b
         _fav_js = """<script>
@@ -1260,7 +1248,7 @@ def main():
                     +'<a href="https://tw.stock.yahoo.com/quote/'+_sq_num+'" target="_blank" style="background:#21262d;color:#58a6ff;border-radius:5px;padding:3px 9px;font-size:0.72rem;text-decoration:none;">📊 Yahoo</a>'
                     +'<a href="https://goodinfo.tw/tw/StockInfo.asp?STOCK_ID='+_sq_num+'" target="_blank" style="background:#21262d;color:#79c0ff;border-radius:5px;padding:3px 9px;font-size:0.72rem;text-decoration:none;">📈 Goodinfo</a>'
                     +'<a href="https://www.tradingview.com/symbols/TWSE-'+_sq_num+'" target="_blank" style="background:#21262d;color:#e3b341;border-radius:5px;padding:3px 9px;font-size:0.72rem;text-decoration:none;">🕯 TradingView</a>'
-                    +'<span style="color:#8b949e;font-size:0.68rem;align-self:center;">資料來源：Yahoo Finance (yfinance)</span>'
+                    +''
                     +'</div>',unsafe_allow_html=True)
                 if sq_ind:
                     # Indicators row
