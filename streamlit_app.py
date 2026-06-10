@@ -1,7 +1,7 @@
 # streamlit_app.py — 台股操盤 Pro
 # 製作者: Evan
-# 版本: v1.0.1
-# 更新: 2026-06-10 修正推薦頁清單錯位、卡片進場標籤、死碼、重複代號
+# 版本: v1.1.0
+# 更新: 2026-06-10 推薦頁修正(v1.0.1);名稱/代碼與推薦池改為動態載入官方上市櫃清單(v1.1.0)
 import streamlit as st
 import pandas as pd
 import yfinance as yf
@@ -136,7 +136,7 @@ def call_ai(prompt):
             except Exception as e: last_err = str(e); continue
         return "Gemini錯誤: "+last_err
 
-NAME_TO_TICKER = {
+_FALLBACK_NAME_TO_TICKER = {
     "台積電":"2330.TW","鴻海":"2317.TW","聯發科":"2454.TW","台達電":"2308.TW",
     "廣達":"2382.TW","緯創":"3231.TW","和碩":"4938.TW","仁寶":"2324.TW",
     "華碩":"2357.TW","宏碁":"2353.TW","聯電":"2303.TW","日月光投控":"3711.TW",
@@ -164,7 +164,7 @@ DEFENSIVE_STOCKS={"中華電","遠傳","台灣大","中鋼","台塑化","台塑"
 GROWTH_STOCKS={"台積電","聯發科","鴻海","廣達","緯創","台達電","技嘉","微星","緯穎","日月光投控","奇鋐","雙鴻","矽力-KY","祥碩","信驊","世芯-KY","聯詠","群聯","瑞昱"}
 # RECOMMEND_POOL: 台灣前150大市值，涵蓋各板塊，每週更新
 # 板塊: AI半導體/電子/金融/航運/傳產/鋼鐵/電信/面板/生技/食品/航太/房建
-RECOMMEND_POOL = [
+_FALLBACK_RECOMMEND_POOL = [
     # --- AI / 半導體 ---
     ("台積電","2330"),("聯發科","2454"),("日月光投控","3711"),("聯電","2303"),
     ("力積電","6770"),("南亞科","2408"),("華邦電","2344"),("旺宏","2337"),
@@ -221,6 +221,50 @@ RECOMMEND_POOL = [
     ("大聯大","3702"),("文曄","3036"),("聯強","2347"),
 ]
 
+@st.cache_data(ttl=86400)
+def load_stock_universe():
+    """動態載入全部上市(.TW)/上櫃(.TWO)股票名稱與代碼，並依成交金額產生推薦池。
+    來源：TWSE / TPEx 官方公開 OpenAPI；任一來源失敗時回退內建清單，確保 App 不中斷。"""
+    name_to_ticker = {}
+    code_to_ticker = {}
+    rows = []
+    got = False
+    try:
+        twse = requests.get("https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL", timeout=15).json()
+        for it in twse:
+            code = str(it.get("Code", "")).strip(); name = str(it.get("Name", "")).strip()
+            if not code or not name: continue
+            tk = code + ".TW"; name_to_ticker[name] = tk; code_to_ticker[code] = tk
+            try: val = float(str(it.get("TradeValue", "0")).replace(",", ""))
+            except: val = 0.0
+            rows.append((code, name, val))
+        got = True
+    except: pass
+    try:
+        tpex = requests.get("https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes", timeout=15).json()
+        for it in tpex:
+            code = str(it.get("SecuritiesCompanyCode", "")).strip(); name = str(it.get("CompanyName", "")).strip()
+            if not code or not name: continue
+            tk = code + ".TWO"; name_to_ticker[name] = tk; code_to_ticker[code] = tk
+            try: val = float(str(it.get("TransactionAmount", "0")).replace(",", ""))
+            except: val = 0.0
+            rows.append((code, name, val))
+        got = True
+    except: pass
+    if not got or len(name_to_ticker) < 100:
+        return dict(_FALLBACK_NAME_TO_TICKER), {}, list(_FALLBACK_RECOMMEND_POOL)
+    for nm, tk in _FALLBACK_NAME_TO_TICKER.items():
+        name_to_ticker.setdefault(nm, tk)
+    commons = [(c, n, v) for (c, n, v) in rows if len(c) == 4 and c.isdigit() and not c.startswith("00")]
+    commons.sort(key=lambda x: -x[2])
+    pool = [(n, c) for (c, n, v) in commons[:120]]
+    if not pool:
+        pool = list(_FALLBACK_RECOMMEND_POOL)
+    return name_to_ticker, code_to_ticker, pool
+
+
+NAME_TO_TICKER, CODE_TO_TICKER, RECOMMEND_POOL = load_stock_universe()
+
 def get_ticker(name):
     name=name.strip()
     # 1. Exact match
@@ -256,6 +300,9 @@ def resolve_ticker(num):
     if not num: return None
     # Already has suffix
     if num.endswith('.TW') or num.endswith('.TWO'): return num
+    try:
+        if num in CODE_TO_TICKER: return CODE_TO_TICKER[num]
+    except: pass
     # Known OTC set (manually curated)
     _otc = {"6415","5269","5274","6462","3661","3017","3324","2421","6230","3044","3533",
             "3406","3529","3035","4749","8271","3362","3260","2637","4958","4123","4157"}
