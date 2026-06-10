@@ -1,7 +1,7 @@
 # streamlit_app.py — 台股操盤 Pro
 # 製作者: Evan
-# 版本: v1.1.0
-# 更新: 2026-06-10 推薦頁修正(v1.0.1);名稱/代碼與推薦池改為動態載入官方上市櫃清單(v1.1.0)
+# 版本: v1.2.0
+# 更新: 2026-06-10 推薦頁修正(v1.0.1);動態載入官方上市櫃清單(v1.1.0);手機版UI優化-字級/對比/單行化(v1.2.0)
 import streamlit as st
 import pandas as pd
 import yfinance as yf
@@ -27,8 +27,9 @@ button[kind="header"]{display:none!important;}
 .block-container{padding:0.5rem 0.6rem 4rem!important;max-width:100%!important;}
 .hero-box{background:linear-gradient(135deg,#1a1f2e,#0f3460);border:1px solid #30363d;border-radius:8px;padding:6px 12px;margin-bottom:4px;}
 .hero-title{font-size:0.95rem;font-weight:800;color:#e6edf3;margin:0;}
-.hero-sub{color:#8b949e;font-size:0.68rem;margin-top:2px;}
-div[data-testid="stTabs"]>div:first-child button{font-size:0.85rem!important;font-weight:700!important;padding:7px 10px!important;}
+.hero-sub{color:#aab4c2;font-size:0.74rem;margin-top:2px;}
+div[data-testid="stTabs"]>div:first-child button{font-size:0.82rem!important;font-weight:700!important;padding:6px 8px!important;}
+div[data-testid="stTabs"]>div:first-child{gap:2px!important;}
 div[data-testid="stExpander"]>details{background:#161b22!important;border:1px solid #30363d!important;border-radius:10px!important;margin-bottom:6px!important;}
 div[data-testid="stExpander"]>details>summary{font-size:0.88rem!important;font-weight:600!important;color:#e6edf3!important;padding:9px 12px!important;}
 .badge{display:block;border-radius:7px;padding:7px 10px;font-size:0.8rem;font-weight:600;margin:5px 0;}
@@ -44,20 +45,20 @@ div[data-testid="stExpander"]>details>summary{font-size:0.88rem!important;font-w
 .bg-etf{background:#1a3040;color:#7ee787;border:1px solid #3fb950;}
 .bg-profit{background:#1f2a0a;color:#d2a679;border:1px solid #c9871f;}
 .pbox{background:#21262d;border-radius:6px;padding:5px 4px;text-align:center;}
-.pbox .pl{font-size:0.58rem;color:#8b949e;text-transform:uppercase;display:block;margin-bottom:1px;}
+.pbox .pl{font-size:0.7rem;color:#aab4c2;text-transform:uppercase;display:block;margin-bottom:1px;}
 .pbox .pv{font-size:0.85rem;font-weight:700;color:#e6edf3;display:block;}
 .atr-box{background:#1a2233;border:1px solid #1f6feb;border-radius:6px;padding:6px 10px;margin:5px 0;font-size:0.75rem;color:#79c0ff;}
-.sbar{background:#21262d;border-radius:5px;padding:6px 8px;margin:5px 0;font-family:monospace;font-size:0.72rem;color:#c9d1d9;word-break:break-all;}
+.sbar{background:#21262d;border-radius:5px;padding:6px 8px;margin:5px 0;font-family:monospace;font-size:0.75rem;color:#d6dde5;word-break:break-all;}
 .ai-box{background:linear-gradient(135deg,#0d1f12,#0a1628);border:1px solid #238636;border-radius:8px;padding:7px 10px;margin:5px 0;}
 .ai-title{font-size:0.78rem;color:#3fb950;font-weight:600;margin-bottom:3px;}
 .ai-content{font-size:0.82rem;color:#c9d1d9;line-height:1.4;white-space:pre-wrap;word-break:break-word;}
 .pick-card{background:#161b22;border:1px solid #30363d;border-left:3px solid #58a6ff;border-radius:9px;padding:10px 12px;margin-bottom:7px;}
 .pick-name{font-size:0.95rem;font-weight:700;color:#e6edf3;}
-.pick-tag{background:#21262d;color:#8b949e;border-radius:4px;padding:1px 5px;font-size:0.65rem;margin-left:3px;}
+.pick-tag{background:#21262d;color:#aab4c2;border-radius:4px;padding:1px 5px;font-size:0.72rem;margin-left:3px;}
 .pick-score{float:right;color:#58a6ff;font-weight:700;font-size:0.85rem;}
-.pick-info{font-size:0.75rem;color:#8b949e;margin-top:3px;}
+.pick-info{font-size:0.75rem;color:#aab4c2;margin-top:3px;}
 .pick-entry{color:#79c0ff;font-weight:600;font-size:0.82rem;margin-top:5px;}
-.pick-atr{background:#1a2233;border-radius:4px;padding:3px 7px;font-size:0.7rem;color:#58a6ff;margin-top:3px;display:inline-block;}
+.pick-atr{background:#1a2233;border-radius:4px;padding:3px 7px;font-size:0.74rem;color:#58a6ff;margin-top:3px;display:inline-block;}
 div[data-testid="stHorizontalBlock"]>div[data-testid="stColumn"]{min-width:0!important;}
 .fav-tag{display:inline-block;background:#1f2e40;border:1px solid #1f6feb;border-radius:12px;padding:2px 10px;font-size:0.75rem;color:#79c0ff;margin:2px 3px;cursor:pointer;}
 
@@ -810,7 +811,7 @@ def render_pick_card(p):
     # 3. Price / MA20 row
     prow([("現價",str(price),"#e6edf3"),("20MA",str(round(ma20,1)),"#8b949e")])
     # 3. Signals
-    st.markdown('<div style="font-size:0.7rem;color:#8b949e;padding:2px 0 3px 0;"><span style="color:#58a6ff;">'+(sig_str)+'</span> &nbsp;|&nbsp; 漲幅:'+gain_str+' &nbsp;量比:'+vol_str+' &nbsp;收盤位置:'+close_str+'&nbsp;&nbsp;'+inst_txt+'</div>',unsafe_allow_html=True)
+    st.markdown('<div style="font-size:0.76rem;color:#79c0ff;padding:3px 0 1px;line-height:1.45;font-weight:600;">'+(sig_str)+'</div>'+'<div style="font-size:0.74rem;color:#aab4c2;padding:0 0 4px;line-height:1.45;">漲幅 '+gain_str+'　'+vol_str+'　'+close_str+'　'+inst_txt+'</div>',unsafe_allow_html=True)
     # 4. K-line / AI buttons
     ai_key="ai_pick_"+ticker
     c1,c2=st.columns(2)
@@ -979,7 +980,7 @@ def main():
         +'</div>',unsafe_allow_html=True)
     # All-in-one tab bar: 匯入 | 持有股 | 推薦 (同一行)
     n_port=len(st.session_state.get("portfolio",[]))
-    tab0,tab1,tab2,tab3,tab4=st.tabs(["⬆️ 匯入("+str(n_port)+"筆)" if n_port>0 else "⬆️ 匯入","📁 持有股","⭐ 推薦","🔍 查股","⚙️ 設定"])
+    tab0,tab1,tab2,tab3,tab4=st.tabs(["匯入("+str(n_port)+"筆)" if n_port>0 else "匯入","持有股","推薦","查股","設定"])
     with tab0:
         # --- Smart CSV Import UI ---
         if st.session_state.get('uploaded_csv_name'):
