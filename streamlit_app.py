@@ -1,3 +1,7 @@
+# streamlit_app.py — 台股操盤 Pro
+# 製作者: Evan
+# 版本: v1.0.1
+# 更新: 2026-06-10 修正推薦頁清單錯位、卡片進場標籤、死碼、重複代號
 import streamlit as st
 import pandas as pd
 import yfinance as yf
@@ -184,7 +188,7 @@ RECOMMEND_POOL = [
     # --- 記憶體模組 ---
     ("威剛","3260"),("宇瞻","8271"),
     # --- 金融 ---
-    ("台灣金控","2892"),("國泰金","2882"),("富邦金","2881"),("中信金","2891"),
+    ("國泰金","2882"),("富邦金","2881"),("中信金","2891"),
     ("兆豐金","2886"),("第一金","2892"),("玉山金","2884"),("元大金","2885"),
     ("永豐金","2890"),("合庫金","5880"),("開發金","2883"),("台新金","2887"),
     # --- 電信 ---
@@ -196,7 +200,7 @@ RECOMMEND_POOL = [
     ("華航","2610"),("長榮航空","2618"),
     # --- 石化 / 傳產 ---
     ("台塑","1301"),("南亞","1303"),("台化","1326"),("台塑化","6505"),
-    ("奇美實業","3709"),("大連","1303"),
+    ("奇美實業","3709"),
     # --- 鋼鐵 ---
     ("中鋼","2002"),("豐興","2015"),("東和鋼鐵","2006"),("燁輝","2023"),
     # --- 汽車零件 ---
@@ -705,12 +709,12 @@ def render_pick_card(p):
     stop=ep.get("stop",round(price*0.95,1))
     risk_pct=ep.get("risk_pct",5.0)
     # Entry badge color & label
-    if condition=="now":
+    if condition=="ready":
         entry_color="#3fb950"; entry_label="✅ 今日可入手"
     elif condition=="pullback":
         entry_color="#79c0ff"; entry_label="🔵 等回測入場"
-    elif condition=="limit":
-        entry_color="#e3b341"; entry_label="🟡 限價掛單"
+    elif condition=="watch":
+        entry_color="#e3b341"; entry_label="⏳ 技術待確認"
     else:
         entry_color="#8b949e"; entry_label="⏳ 尚未就緒"
     # Stock type label
@@ -723,12 +727,6 @@ def render_pick_card(p):
     else:
         type_label="✅ 技術偏多"; type_color="#3fb950"
     # Signals
-    signals=[]
-    if ind.get("above_ma20"): signals.append("MA20✅")
-    if ind.get("macd_cross"): signals.append("MACD📈")
-    if ind.get("k",50)<80 and ind.get("k",50)>ind.get("d",50): signals.append("KD🔁")
-    if inst_val>0: signals.append("法人🏦")
-    if bearish: signals.append("開高走低🔻")
     signals = p.get("signals", [])
     vol_r = p.get("vol_ratio", 1.0)
     today_g = p.get("today_gain", 0)
@@ -736,7 +734,7 @@ def render_pick_card(p):
     sig_str = " | ".join(signals) if signals else "—"
     vol_str = str(round(vol_r,1))+"x量"
     gain_str = ("+" if today_g>=0 else "")+str(today_g)+"%"
-    close_str = str(int(close_loc*100 if False else close_l*100))+"%位"
+    close_str = str(int(close_l*100))+"%位"
     # === RENDER ===
     # 1. Entry price box (most prominent)
     st.markdown(
@@ -1115,24 +1113,24 @@ def main():
     with tab2:
         st.caption("依技術評分排序 | 盤勢轉弱時不顯示買進訊號")
         with st.spinner("掃描推薦中..."):
-            buy_picks,watch_picks,def_picks=get_recommendations(mkt)
-        if not buy_picks and not watch_picks and not def_picks:
+            ready_picks,pullback_picks,watch_picks=get_recommendations(mkt)
+        if not ready_picks and not pullback_picks and not watch_picks:
             st.info("目前無符合條件推薦股（評分≥2）")
         else:
-            if buy_picks:
-                st.markdown('<div style="color:#3fb950;font-weight:700;font-size:0.85rem;margin:4px 0;">✅ 今日可入手／等回測</div>',unsafe_allow_html=True)
-                for p in buy_picks:
+            if ready_picks:
+                st.markdown('<div style="color:#3fb950;font-weight:700;font-size:0.85rem;margin:4px 0;">✅ 今日可入手</div>',unsafe_allow_html=True)
+                for p in ready_picks:
+                    with st.expander(p["name"]+"  "+p["ticker"]+"  +"+str(p["buy_score"])+"分",expanded=False):
+                        render_pick_card(p)
+            if pullback_picks:
+                st.markdown('<div style="color:#79c0ff;font-weight:700;font-size:0.85rem;margin:4px 0;">🔵 漲多等回測</div>',unsafe_allow_html=True)
+                for p in pullback_picks:
                     with st.expander(p["name"]+"  "+p["ticker"]+"  +"+str(p["buy_score"])+"分",expanded=False):
                         render_pick_card(p)
             if watch_picks:
-                st.markdown('<div style="color:#e3b341;font-weight:700;font-size:0.85rem;margin:4px 0;">⏳ 尚未就緒／技術待確認</div>',unsafe_allow_html=True)
+                st.markdown('<div style="color:#e3b341;font-weight:700;font-size:0.85rem;margin:4px 0;">⏳ 技術待確認</div>',unsafe_allow_html=True)
                 for p in watch_picks:
-                    with st.expander(p["name"]+"  "+p["ticker"]+"  +"+str(p["score"])+"分",expanded=False):
-                        render_pick_card(p)
-            if def_picks:
-                st.markdown('<div style="color:#6e7681;font-weight:700;font-size:0.85rem;margin:4px 0;">🛡️ 防禦/穩定型</div>',unsafe_allow_html=True)
-                for p in def_picks:
-                    with st.expander(p["name"]+"  "+p["ticker"]+"  +"+str(p["score"])+"分",expanded=False):
+                    with st.expander(p["name"]+"  "+p["ticker"]+"  +"+str(p["buy_score"])+"分",expanded=False):
                         render_pick_card(p)
     with tab3:
         st.caption("輸入股票代碼（如 2330）或名稱（如 台積電）— 資料來源：Yahoo Finance")
