@@ -1,7 +1,7 @@
 # streamlit_app.py — 台股操盤 Pro
 # 製作者: Evan
-# 版本: v1.3.0
-# 更新: 2026-06-10 推薦頁(v1.0.1);動態載入官方清單(v1.1.0);手機版UI(v1.2.0);查股文案精簡/持有股移收藏鈕/查股收藏鈕去框/盤前總結改手動/AI標籤去刺眼(v1.3.0)
+# 版本: v1.3.1
+# 更新: 2026-06-10 推薦頁(v1.0.1);動態載入官方清單(v1.1.0);手機版UI(v1.2.0);查股文案精簡/持有股移收藏鈕/查股收藏鈕去框/盤前總結改手動/AI標籤去刺眼(v1.3.0);查股輸入代碼顯示正確名稱(v1.3.1)
 import streamlit as st
 import pandas as pd
 import yfinance as yf
@@ -1221,7 +1221,7 @@ def main():
                 sq_df = fetch_stock(sq_ticker, "6mo")
                 sq_ind = calc_indicators_ext(sq_df) if sq_df is not None and len(sq_df)>=21 else (calc_indicators(sq_df) if sq_df is not None and len(sq_df)>=20 else {})
                 sq_price = sq_ind.get("price",0) if sq_ind else 0
-                sq_name = sq_query if sq_query in NAME_TO_TICKER else sq_query
+                sq_name = next((k for k,v in NAME_TO_TICKER.items() if v==sq_ticker), sq_query)
                 _sq_num = sq_ticker.replace(".TW","").replace(".TWO","")
                 # ➕/⭐ header row
                 _fav_key = sq_ticker
