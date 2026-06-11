@@ -1,7 +1,7 @@
 # streamlit_app.py — 台股操盤 Pro
 # 製作者: Evan
-# 版本: v1.3.1
-# 更新: 2026-06-10 推薦頁(v1.0.1);動態載入官方清單(v1.1.0);手機版UI(v1.2.0);查股文案精簡/持有股移收藏鈕/查股收藏鈕去框/盤前總結改手動/AI標籤去刺眼(v1.3.0);查股輸入代碼顯示正確名稱(v1.3.1)
+# 版本: v1.4.0
+# 更新: 2026-06-10 推薦頁(v1.0.1);動態載入官方清單(v1.1.0);手機版UI(v1.2.0);查股文案精簡/持有股移收藏鈕/查股收藏鈕去框/盤前總結改手動/AI標籤去刺眼(v1.3.0);查股輸入代碼顯示正確名稱(v1.3.1);科技感配色/放大字級/紅漲綠跌/看漲狀態改青色(v1.4.0)
 import streamlit as st
 import pandas as pd
 import yfinance as yf
@@ -23,47 +23,47 @@ div[data-testid="stDecoration"]{display:none!important;}
 .viewerBadge_container__1QSob{display:none!important;}
 button[kind="header"]{display:none!important;}
 [data-testid="collapsedControl"]{display:none!important;}
-.stApp{background:#0d1117;}
+.stApp{background:#070c16;}
 .block-container{padding:0.5rem 0.6rem 4rem!important;max-width:100%!important;}
-.hero-box{background:linear-gradient(135deg,#1a1f2e,#0f3460);border:1px solid #30363d;border-radius:8px;padding:6px 12px;margin-bottom:4px;}
-.hero-title{font-size:0.95rem;font-weight:800;color:#e6edf3;margin:0;}
-.hero-sub{color:#aab4c2;font-size:0.74rem;margin-top:2px;}
-div[data-testid="stTabs"]>div:first-child button{font-size:0.82rem!important;font-weight:700!important;padding:6px 8px!important;}
+.hero-box{background:linear-gradient(135deg,#0f1b34,#0a3a66);border:1px solid #2a3a57;border-radius:8px;padding:6px 12px;margin-bottom:4px;}
+.hero-title{font-size:1.0rem;font-weight:800;color:#eaf2ff;margin:0;}
+.hero-sub{color:#9fb0d0;font-size:0.85rem;margin-top:2px;}
+div[data-testid="stTabs"]>div:first-child button{font-size:0.92rem!important;font-weight:700!important;padding:6px 8px!important;}
 div[data-testid="stTabs"]>div:first-child{gap:2px!important;}
-div[data-testid="stExpander"]>details{background:#161b22!important;border:1px solid #30363d!important;border-radius:10px!important;margin-bottom:6px!important;}
-div[data-testid="stExpander"]>details>summary{font-size:0.88rem!important;font-weight:600!important;color:#e6edf3!important;padding:9px 12px!important;}
-.badge{display:block;border-radius:7px;padding:7px 10px;font-size:0.8rem;font-weight:600;margin:5px 0;}
-.bg-sell{background:#3d1a1a;color:#f85149;border:1px solid #da3633;}
-.bg-flat{background:#3d2e00;color:#e3b341;border:1px solid #9e6a03;}
-.bg-hold{background:#1a4731;color:#3fb950;border:1px solid #238636;}
-.bg-strong{background:#0d2a1f;color:#56d364;border:1px solid #238636;}
-.bg-add{background:#0a2040;color:#79c0ff;border:1px solid #1f6feb;}
-.bg-watch{background:#2a2000;color:#e3b341;border:1px solid #9e6a03;}
-.bg-reduce{background:#2a1500;color:#ffa657;border:1px solid #d1242f;}
-.bg-stop{background:#3d1a1a;color:#f85149;border:1px solid #da3633;}
-.bg-nodata{background:#1c1c1c;color:#8b949e;border:1px solid #484f58;}
-.bg-etf{background:#1a3040;color:#7ee787;border:1px solid #3fb950;}
-.bg-profit{background:#1f2a0a;color:#d2a679;border:1px solid #c9871f;}
-.pbox{background:#21262d;border-radius:6px;padding:5px 4px;text-align:center;}
-.pbox .pl{font-size:0.7rem;color:#aab4c2;text-transform:uppercase;display:block;margin-bottom:1px;}
-.pbox .pv{font-size:0.85rem;font-weight:700;color:#e6edf3;display:block;}
-.atr-box{background:#1a2233;border:1px solid #1f6feb;border-radius:6px;padding:6px 10px;margin:5px 0;font-size:0.75rem;color:#79c0ff;}
-.sbar{background:#21262d;border-radius:5px;padding:6px 8px;margin:5px 0;font-family:monospace;font-size:0.75rem;color:#d6dde5;word-break:break-all;}
-.ai-box{background:linear-gradient(135deg,#0d1f12,#0a1628);border:1px solid #238636;border-radius:8px;padding:7px 10px;margin:5px 0;}
-.ai-title{font-size:0.78rem;color:#3fb950;font-weight:600;margin-bottom:3px;}
-.ai-content{font-size:0.82rem;color:#c9d1d9;line-height:1.4;white-space:pre-wrap;word-break:break-word;}
-.pick-card{background:#161b22;border:1px solid #30363d;border-left:3px solid #58a6ff;border-radius:9px;padding:10px 12px;margin-bottom:7px;}
-.pick-name{font-size:0.95rem;font-weight:700;color:#e6edf3;}
-.pick-tag{background:#21262d;color:#aab4c2;border-radius:4px;padding:1px 5px;font-size:0.72rem;margin-left:3px;}
-.pick-score{float:right;color:#58a6ff;font-weight:700;font-size:0.85rem;}
-.pick-info{font-size:0.75rem;color:#aab4c2;margin-top:3px;}
-.pick-entry{color:#79c0ff;font-weight:600;font-size:0.82rem;margin-top:5px;}
-.pick-atr{background:#1a2233;border-radius:4px;padding:3px 7px;font-size:0.74rem;color:#58a6ff;margin-top:3px;display:inline-block;}
+div[data-testid="stExpander"]>details{background:#0f1726!important;border:1px solid #2a3a57!important;border-radius:10px!important;margin-bottom:6px!important;}
+div[data-testid="stExpander"]>details>summary{font-size:0.96rem!important;font-weight:600!important;color:#eaf2ff!important;padding:9px 12px!important;}
+.badge{display:block;border-radius:7px;padding:7px 10px;font-size:0.9rem;font-weight:600;margin:5px 0;}
+.bg-sell{background:#3a1420;color:#ff4d61;border:1px solid #d83a4a;}
+.bg-flat{background:#33300a;color:#ffd24a;border:1px solid #b07d1a;}
+.bg-hold{background:#0a2538;color:#2dd4ff;border:1px solid #2d8fd8;}
+.bg-strong{background:#0a2538;color:#2dd4ff;border:1px solid #2d8fd8;}
+.bg-add{background:#0a2245;color:#5cc8ff;border:1px solid #2d8fd8;}
+.bg-watch{background:#26240a;color:#ffd24a;border:1px solid #b07d1a;}
+.bg-reduce{background:#2a1f08;color:#ffb06b;border:1px solid #d83a4a;}
+.bg-stop{background:#3a1420;color:#ff4d61;border:1px solid #d83a4a;}
+.bg-nodata{background:#141b2a;color:#8499bd;border:1px solid #3a4a66;}
+.bg-etf{background:#0e2638;color:#5cc8ff;border:1px solid #2d8fd8;}
+.bg-profit{background:#1a2a14;color:#e0b56a;border:1px solid #d09a2a;}
+.pbox{background:#18243a;border-radius:6px;padding:5px 4px;text-align:center;}
+.pbox .pl{font-size:0.82rem;color:#9fb0d0;text-transform:uppercase;display:block;margin-bottom:1px;}
+.pbox .pv{font-size:0.94rem;font-weight:700;color:#eaf2ff;display:block;}
+.atr-box{background:#13233c;border:1px solid #2d8fd8;border-radius:6px;padding:6px 10px;margin:5px 0;font-size:0.86rem;color:#5cc8ff;}
+.sbar{background:#18243a;border-radius:5px;padding:6px 8px;margin:5px 0;font-family:monospace;font-size:0.86rem;color:#cdd9ee;word-break:break-all;}
+.ai-box{background:linear-gradient(135deg,#0a2230,#08182e);border:1px solid #1f9d5e;border-radius:8px;padding:7px 10px;margin:5px 0;}
+.ai-title{font-size:0.88rem;color:#23d18b;font-weight:600;margin-bottom:3px;}
+.ai-content{font-size:0.92rem;color:#cdd9ee;line-height:1.4;white-space:pre-wrap;word-break:break-word;}
+.pick-card{background:#0f1726;border:1px solid #2a3a57;border-left:3px solid #2dd4ff;border-radius:9px;padding:10px 12px;margin-bottom:7px;}
+.pick-name{font-size:1.0rem;font-weight:700;color:#eaf2ff;}
+.pick-tag{background:#18243a;color:#9fb0d0;border-radius:4px;padding:1px 5px;font-size:0.84rem;margin-left:3px;}
+.pick-score{float:right;color:#2dd4ff;font-weight:700;font-size:0.94rem;}
+.pick-info{font-size:0.86rem;color:#9fb0d0;margin-top:3px;}
+.pick-entry{color:#5cc8ff;font-weight:600;font-size:0.92rem;margin-top:5px;}
+.pick-atr{background:#13233c;border-radius:4px;padding:3px 7px;font-size:0.85rem;color:#2dd4ff;margin-top:3px;display:inline-block;}
 div[data-testid="stHorizontalBlock"]>div[data-testid="stColumn"]{min-width:0!important;}
-.fav-tag{display:inline-block;background:#1f2e40;border:1px solid #1f6feb;border-radius:12px;padding:2px 10px;font-size:0.75rem;color:#79c0ff;margin:2px 3px;cursor:pointer;}
+.fav-tag{display:inline-block;background:#14283f;border:1px solid #2d8fd8;border-radius:12px;padding:2px 10px;font-size:0.86rem;color:#5cc8ff;margin:2px 3px;cursor:pointer;}
 
 .btn-row > div[data-testid="stElementContainer"]{margin:0!important;}
-[class*="st-key-fav_hdr_"] button{border:none!important;background:transparent!important;box-shadow:none!important;padding:0 4px!important;font-size:1.05rem!important;}
+[class*="st-key-fav_hdr_"] button{border:none!important;background:transparent!important;box-shadow:none!important;padding:0 4px!important;font-size:1.08rem!important;}
 </style>
 """, unsafe_allow_html=True)
 
@@ -734,14 +734,14 @@ def show_kline(ticker,height=260):
     if df is not None and len(df)>5:
         try:
             import plotly.graph_objects as go
-            fig=go.Figure(data=[go.Candlestick(x=df.index,open=df["Open"],high=df["High"],low=df["Low"],close=df["Close"],increasing_line_color="#3fb950",decreasing_line_color="#f85149")])
-            fig.update_layout(height=height,paper_bgcolor="#0d1117",plot_bgcolor="#0d1117",font_color="#c9d1d9",xaxis_rangeslider_visible=False,margin=dict(l=0,r=0,t=15,b=0))
+            fig=go.Figure(data=[go.Candlestick(x=df.index,open=df["Open"],high=df["High"],low=df["Low"],close=df["Close"],increasing_line_color="#ff4d61",decreasing_line_color="#23d18b")])
+            fig.update_layout(height=height,paper_bgcolor="#070c16",plot_bgcolor="#070c16",font_color="#cdd9ee",xaxis_rangeslider_visible=False,margin=dict(l=0,r=0,t=15,b=0))
             st.plotly_chart(fig,use_container_width=True)
         except: st.info("需安裝 plotly")
 
 def prow(items):
     for lbl,val,color in items:
-        st.markdown('<div style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:8px 12px;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center;"><span style="color:#8b949e;font-size:0.78rem;">'+str(lbl)+'</span><span style="color:'+str(color)+';font-size:1rem;font-weight:700;">'+str(val)+'</span></div>',unsafe_allow_html=True)
+        st.markdown('<div style="background:#0f1726;border:1px solid #2a3a57;border-radius:8px;padding:8px 12px;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center;"><span style="color:#8499bd;font-size:0.88rem;">'+str(lbl)+'</span><span style="color:'+str(color)+';font-size:1rem;font-weight:700;">'+str(val)+'</span></div>',unsafe_allow_html=True)
 def render_pick_card(p):
     ind=p["ind"]; sc=p["score"]; name=p["name"]; ticker=p["ticker"]
     price=ind.get("price",0); ma20=ind.get("ma20",price)
@@ -759,22 +759,22 @@ def render_pick_card(p):
     risk_pct=ep.get("risk_pct",5.0)
     # Entry badge color & label
     if condition=="ready":
-        entry_color="#3fb950"; entry_label="✅ 今日可入手"
+        entry_color="#2dd4ff"; entry_label="✅ 今日可入手"
     elif condition=="pullback":
-        entry_color="#79c0ff"; entry_label="🔵 等回測入場"
+        entry_color="#5cc8ff"; entry_label="🔵 等回測入場"
     elif condition=="watch":
-        entry_color="#e3b341"; entry_label="⏳ 技術待確認"
+        entry_color="#ffd24a"; entry_label="⏳ 技術待確認"
     else:
-        entry_color="#8b949e"; entry_label="⏳ 尚未就緒"
+        entry_color="#8499bd"; entry_label="⏳ 尚未就緒"
     # Stock type label
     if is_def:
-        type_label="🛡️ 防禦"; type_color="#6e7681"
+        type_label="🛡️ 防禦"; type_color="#6b7a99"
     elif mkt_weak:
-        type_label="⚠️ 盤弱"; type_color="#e3b341"
+        type_label="⚠️ 盤弱"; type_color="#ffd24a"
     elif bearish:
-        type_label="🟠 今日轉弱"; type_color="#f0883e"
+        type_label="🟠 今日轉弱"; type_color="#ff9a4d"
     else:
-        type_label="✅ 技術偏多"; type_color="#3fb950"
+        type_label="✅ 技術偏多"; type_color="#2dd4ff"
     # Signals
     signals = p.get("signals", [])
     vol_r = p.get("vol_ratio", 1.0)
@@ -787,16 +787,16 @@ def render_pick_card(p):
     # === RENDER ===
     # 1. Entry price box (most prominent)
     st.markdown(
-        '<div style="background:#0d1f12;border:1px solid '+entry_color+';border-radius:8px;padding:8px 12px;margin:4px 0;">'
+        '<div style="background:#0a2230;border:1px solid '+entry_color+';border-radius:8px;padding:8px 12px;margin:4px 0;">'
         +'<div style="display:flex;justify-content:space-between;align-items:center;">'
-        +'<span style="color:'+entry_color+';font-weight:700;font-size:0.88rem;">'+entry_label+'</span>'
-        +'<span style="color:#8b949e;font-size:0.72rem;">評分 '+str(buy_sc)+'/5 &nbsp;'+type_label+'</span>'
+        +'<span style="color:'+entry_color+';font-weight:700;font-size:0.96rem;">'+entry_label+'</span>'
+        +'<span style="color:#8499bd;font-size:0.84rem;">評分 '+str(buy_sc)+'/5 &nbsp;'+type_label+'</span>'
         +'</div>'
         +'<div style="margin-top:5px;display:flex;gap:8px;flex-wrap:wrap;">'
-        +'<span style="background:#21262d;border-radius:5px;padding:3px 8px;font-size:0.78rem;color:#e6edf3;">📍 入場區間 <b style=\"color:'+entry_color+'\">'+str(entry_low)+'－'+str(entry_high)+'</b></span>'
-        +'<span style="background:#21262d;border-radius:5px;padding:3px 8px;font-size:0.78rem;color:#f85149;">🛑 停損 <b>'+str(stop)+'</b> (-'+str(risk_pct)+'%)</span>'
+        +'<span style="background:#18243a;border-radius:5px;padding:3px 8px;font-size:0.88rem;color:#eaf2ff;">📍 入場區間 <b style=\"color:'+entry_color+'\">'+str(entry_low)+'－'+str(entry_high)+'</b></span>'
+        +'<span style="background:#18243a;border-radius:5px;padding:3px 8px;font-size:0.88rem;color:#ff4d61;">🛑 停損 <b>'+str(stop)+'</b> (-'+str(risk_pct)+'%)</span>'
         +'</div>'
-        +'<div style="margin-top:4px;font-size:0.78rem;color:#c9d1d9;">'+entry_msg+'</div>'
+        +'<div style="margin-top:4px;font-size:0.88rem;color:#cdd9ee;">'+entry_msg+'</div>'
         +'</div>',
         unsafe_allow_html=True)
     # 2. Query links
@@ -805,14 +805,14 @@ def render_pick_card(p):
     _gi_url = "https://goodinfo.tw/tw/StockInfo.asp?STOCK_ID="+_num
     _tv_url = "https://www.tradingview.com/symbols/TWSE-"+_num
     st.markdown('<div style="display:flex;gap:8px;margin:4px 0;flex-wrap:wrap;">'
-        +'<a href="'+_yf_url+'" target="_blank" style="background:#21262d;color:#58a6ff;border-radius:5px;padding:3px 9px;font-size:0.72rem;text-decoration:none;">📊 Yahoo</a>'
-        +'<a href="'+_gi_url+'" target="_blank" style="background:#21262d;color:#79c0ff;border-radius:5px;padding:3px 9px;font-size:0.72rem;text-decoration:none;">📈 Goodinfo</a>'
-        +'<a href="'+_tv_url+'" target="_blank" style="background:#21262d;color:#e3b341;border-radius:5px;padding:3px 9px;font-size:0.72rem;text-decoration:none;">🕯 TradingView</a>'
+        +'<a href="'+_yf_url+'" target="_blank" style="background:#18243a;color:#2dd4ff;border-radius:5px;padding:3px 9px;font-size:0.84rem;text-decoration:none;">📊 Yahoo</a>'
+        +'<a href="'+_gi_url+'" target="_blank" style="background:#18243a;color:#5cc8ff;border-radius:5px;padding:3px 9px;font-size:0.84rem;text-decoration:none;">📈 Goodinfo</a>'
+        +'<a href="'+_tv_url+'" target="_blank" style="background:#18243a;color:#ffd24a;border-radius:5px;padding:3px 9px;font-size:0.84rem;text-decoration:none;">🕯 TradingView</a>'
         +'</div>',unsafe_allow_html=True)
     # 3. Price / MA20 row
-    prow([("現價",str(price),"#e6edf3"),("20MA",str(round(ma20,1)),"#8b949e")])
+    prow([("現價",str(price),"#eaf2ff"),("20MA",str(round(ma20,1)),"#8499bd")])
     # 3. Signals
-    st.markdown('<div style="font-size:0.76rem;color:#79c0ff;padding:3px 0 1px;line-height:1.45;font-weight:600;">'+(sig_str)+'</div>'+'<div style="font-size:0.74rem;color:#aab4c2;padding:0 0 4px;line-height:1.45;">漲幅 '+gain_str+'　'+vol_str+'　'+close_str+'　'+inst_txt+'</div>',unsafe_allow_html=True)
+    st.markdown('<div style="font-size:0.86rem;color:#5cc8ff;padding:3px 0 1px;line-height:1.45;font-weight:600;">'+(sig_str)+'</div>'+'<div style="font-size:0.85rem;color:#9fb0d0;padding:0 0 4px;line-height:1.45;">漲幅 '+gain_str+'　'+vol_str+'　'+close_str+'　'+inst_txt+'</div>',unsafe_allow_html=True)
     # 4. K-line / AI buttons
     ai_key="ai_pick_"+ticker
     c1,c2=st.columns(2)
@@ -831,25 +831,25 @@ def render_pick_card(p):
     if ai_key in st.session_state:
         with st.expander("🤖 AI分析（"+name+"）",expanded=True):
             raw=str(st.session_state[ai_key]).replace("<","&lt;").replace(">","&gt;")
-            _colors={"結論":"#f0883e","走勢":"#79c0ff","理由":"#e3b341","新聞":"#7ee787"}
+            _colors={"結論":"#ff9a4d","走勢":"#5cc8ff","理由":"#ffd24a","新聞":"#5cf0b0"}
             import re
             parts=re.split(r'(【[^】]+】)',raw)
             html=""
-            cur_color="#c9d1d9"; cur_tag=""
+            cur_color="#cdd9ee"; cur_tag=""
             for part in parts:
                 m=re.match(r'【([^】]+)】',part)
                 if m:
-                    cur_tag=m.group(1); cur_color=_colors.get(cur_tag,"#c9d1d9")
+                    cur_tag=m.group(1); cur_color=_colors.get(cur_tag,"#cdd9ee")
                     html+='<div style="color:'+cur_color+';font-weight:700;margin-top:8px;">【'+cur_tag+'】</div>'
                 elif part.strip():
-                    html+='<div style="border-left:2px solid '+cur_color+';padding-left:8px;margin-bottom:4px;color:#c9d1d9;font-size:0.82rem;">'+part.strip()+'</div>'
+                    html+='<div style="border-left:2px solid '+cur_color+';padding-left:8px;margin-bottom:4px;color:#cdd9ee;font-size:0.92rem;">'+part.strip()+'</div>'
             st.markdown(html,unsafe_allow_html=True)
 
 def render_stock_card(r):
     name=r["name"]; price=r["price"]; cost=r["cost"]; shares=r["shares"]
     pnl_pct=r["pnl_pct"]; pnl_amt=r["pnl_amt"]; ind=r["ind"]; sc=r["score"]
     ticker=r.get("ticker",""); price_ok=r.get("price_ok",False); is_etf=r.get("is_etf",False)
-    pnl_color="#3fb950" if pnl_pct>=0 else "#f85149"
+    pnl_color="#ff4d61" if pnl_pct>=0 else "#23d18b"
     pnl_sign="+" if pnl_pct>=0 else ""
     cl=classify(r)
     badge_map={"stop":("bg-stop","🔴 技術破位/停損"),"reduce":("bg-reduce","🟠 技術轉弱/減碼"),"watch":("bg-watch","⚠️ 觀望等待"),"strong":("bg-strong","💎 技術強勢/續抱"),"add":("bg-add","➕ 條件加碼"),"etf":("bg-etf","💚 ETF長期持有"),"nodata":("bg-nodata","❌ 評估失敗"),"profit":("bg-profit","💰 獲利了結區間")}
@@ -864,7 +864,7 @@ def render_stock_card(r):
     if not price_ok:
         col_r1,col_r2=st.columns([3,1])
         no_reason="無法識別股票代碼" if not ticker else ("代碼:"+str(ticker)+" 抓取失敗")
-        with col_r1: prow([("現價", "❌ "+no_reason, "#8b949e")])
+        with col_r1: prow([("現價", "❌ "+no_reason, "#8499bd")])
         with col_r2:
             if st.button("🔄",key="retry_"+name,help="重新抓取現價"):
                 new_p=get_current_price(ticker) if ticker else None
@@ -874,25 +874,25 @@ def render_stock_card(r):
                     r["pnl_amt"]=(new_p-cost)*shares
                     st.rerun()
     else:
-        prow([("現價", str(price), "#e6edf3")])
-    prow([("股數", str(int(shares))+"股", "#8b949e")])
-    prow([("成本", str(cost), "#8b949e")])
+        prow([("現價", str(price), "#eaf2ff")])
+    prow([("股數", str(int(shares))+"股", "#8499bd")])
+    prow([("成本", str(cost), "#8499bd")])
     if price_ok:
         prow([("損益", pnl_sign+str(int(pnl_amt))+" ("+pnl_sign+str(round(pnl_pct,1))+"%)", pnl_color)])
     else:
-        prow([("損益", "取得中", "#8b949e")])
-    prow([("評分", ("+"+str(sc) if sc>0 else str(sc)), "#58a6ff")])
+        prow([("損益", "取得中", "#8499bd")])
+    prow([("評分", ("+"+str(sc) if sc>0 else str(sc)), "#2dd4ff")])
     if ind:
         atr_stop=round(price-ind.get("atr",0)*2,1); trail_stop=round(price*0.95,1)
         kl=get_key_levels(r)
         st.markdown('<div class="atr-box">🛡 操作停損 <b>'+str(kl["op_stop"])+'</b>｜防守 <b>'+str(kl["defend"])+'</b>｜轉強 <b>'+str(kl["turn_strong"])+'</b></div>',unsafe_allow_html=True)
         if profit_info:
-            p_color={"🔴":"#f85149","⚡️":"#f0883e","🛡":"#58a6ff","💰":"#d2a679"}.get(profit_info["emoji"],"#d2a679")
-            st.markdown('<div style="background:#1a1500;border:1px solid #c9871f;border-left:4px solid '+p_color+';border-radius:6px;padding:7px 10px;margin:5px 0;"><div style="color:'+p_color+';font-weight:700;font-size:0.82rem;">'+profit_info["action"]+'</div><div style="color:#c9d1d9;font-size:0.78rem;margin-top:3px;">'+profit_info["msg"]+'</div><div style="color:#8b949e;font-size:0.72rem;margin-top:2px;">追蹤停利線：<b style=\"color:'+p_color+'\">'+str(profit_info["trail_stop"])+'</b></div></div>',unsafe_allow_html=True)
+            p_color={"🔴":"#ff4d61","⚡️":"#ff9a4d","🛡":"#2dd4ff","💰":"#e0b56a"}.get(profit_info["emoji"],"#e0b56a")
+            st.markdown('<div style="background:#1c1a06;border:1px solid #d09a2a;border-left:4px solid '+p_color+';border-radius:6px;padding:7px 10px;margin:5px 0;"><div style="color:'+p_color+';font-weight:700;font-size:0.92rem;">'+profit_info["action"]+'</div><div style="color:#cdd9ee;font-size:0.88rem;margin-top:3px;">'+profit_info["msg"]+'</div><div style="color:#8499bd;font-size:0.84rem;margin-top:2px;">追蹤停利線：<b style=\"color:'+p_color+'\">'+str(profit_info["trail_stop"])+'</b></div></div>',unsafe_allow_html=True)
         ma_icon="✅" if ind.get("above_ma20") else "❌"; ma_dir="上方" if ind.get("above_ma20") else "下方"
         st.markdown('<div class="sbar">RSI:'+str(ind.get("rsi","-"))+' MACD:'+str(round(ind.get("macd",0),3))+' K:'+str(ind.get("k","-"))+'/D:'+str(ind.get("d","-"))+' MA20:'+str(ind.get("ma20","-"))+' '+ma_icon+ma_dir+'</div>',unsafe_allow_html=True)
         inst=ind.get("inst",0)
-        st.markdown('<div style="font-size:0.68rem;color:#8b949e;margin:3px 0;">'+("法人買超 "+str(inst)+"億" if inst>0 else "法人小幅參與 "+str(abs(inst))+"億")+'</div>',unsafe_allow_html=True)
+        st.markdown('<div style="font-size:0.8rem;color:#8499bd;margin:3px 0;">'+("法人買超 "+str(inst)+"億" if inst>0 else "法人小幅參與 "+str(abs(inst))+"億")+'</div>',unsafe_allow_html=True)
     elif is_etf: st.markdown('<div class="sbar">ETF — 依配息策略持有</div>',unsafe_allow_html=True)
     ai_key="aih_"+name
     c1,c2=st.columns(2)
@@ -920,15 +920,15 @@ def render_stock_card(r):
             _txt=st.session_state[ai_key]
             import re as _re
             _parts=_re.split(r'(【[^】]+】)',_txt)
-            _colors={"結論":"#f0883e","走勢":"#79c0ff","理由":"#e3b341","新聞":"#7ee787","ETF":"#7ee787"}
-            _cur_color="#c9d1d9"
+            _colors={"結論":"#ff9a4d","走勢":"#5cc8ff","理由":"#ffd24a","新聞":"#5cf0b0","ETF":"#5cf0b0"}
+            _cur_color="#cdd9ee"
             for _p in _parts:
                 if _p.startswith("【") and _p.endswith("】"):
                     _key=_p[1:-1]
-                    _cur_color=_colors.get(_key,"#c9d1d9")
-                    st.markdown(f'<span style="color:{_cur_color};font-weight:700;font-size:0.95rem;">{_p}</span>',unsafe_allow_html=True)
+                    _cur_color=_colors.get(_key,"#cdd9ee")
+                    st.markdown(f'<span style="color:{_cur_color};font-weight:700;font-size:1.0rem;">{_p}</span>',unsafe_allow_html=True)
                 elif _p.strip():
-                    st.markdown(f'<div style="color:#c9d1d9;font-size:0.88rem;line-height:1.6;margin:4px 0 12px 0;padding-left:8px;border-left:2px solid {_cur_color};">{_p.strip()}</div>',unsafe_allow_html=True)
+                    st.markdown(f'<div style="color:#cdd9ee;font-size:0.96rem;line-height:1.6;margin:4px 0 12px 0;padding-left:8px;border-left:2px solid {_cur_color};">{_p.strip()}</div>',unsafe_allow_html=True)
     if st.session_state.get("skh_"+name) and ticker: show_kline(ticker)
 
 def main():
@@ -968,16 +968,16 @@ def main():
     holdings_names=[s["name"] for s in portfolio]
     headline, focus_str = generate_market_headline(mkt, holdings_names)
     # Hero header
-    focus_html=('<div style="font-size:0.72rem;color:#79c0ff;margin-top:2px;">'+focus_str+'</div>') if focus_str else ''
-    st.markdown('<div class="hero-box"><div class="hero-title">'+headline+'<span style="font-size:0.65rem;color:#3fb950;margin-left:6px;">'+ai_label+'</span></div>'+focus_html+'<div class="hero-sub">'+now_str+'</div></div>',unsafe_allow_html=True)
+    focus_html=('<div style="font-size:0.84rem;color:#5cc8ff;margin-top:2px;">'+focus_str+'</div>') if focus_str else ''
+    st.markdown('<div class="hero-box"><div class="hero-title">'+headline+'<span style="font-size:0.78rem;color:#23d18b;margin-left:6px;">'+ai_label+'</span></div>'+focus_html+'<div class="hero-sub">'+now_str+'</div></div>',unsafe_allow_html=True)
     # Compact market strip
     tw_c=mkt.get("台指",{}).get("change_pct",0); nas_c=mkt.get("納指",{}).get("change_pct",0); tsm_c=mkt.get("TSM",{}).get("change_pct",0)
-    def _mc(v): return ("#3fb950" if v>=0 else "#f85149")
+    def _mc(v): return ("#ff4d61" if v>=0 else "#23d18b")
     def _ms(v): return ("+" if v>=0 else "")+str(v)+"%"
-    st.markdown('<div style="display:flex;gap:8px;padding:2px 0 4px 0;font-size:0.72rem;flex-wrap:wrap;">'
-        +'<span style="color:#8b949e;">台指</span><span style="color:'+_mc(tw_c)+';">'+str(int(mkt.get("台指",{}).get("price",0)))+' '+_ms(tw_c)+'</span>'
-        +'<span style="color:#8b949e;">｜納指</span><span style="color:'+_mc(nas_c)+';">'+str(int(mkt.get("納指",{}).get("price",0)))+' '+_ms(nas_c)+'</span>'
-        +'<span style="color:#8b949e;">｜TSM ADR</span><span style="color:'+_mc(tsm_c)+';">'+str(round(mkt.get("TSM",{}).get("price",0),1))+' '+_ms(tsm_c)+'</span>'
+    st.markdown('<div style="display:flex;gap:8px;padding:2px 0 4px 0;font-size:0.84rem;flex-wrap:wrap;">'
+        +'<span style="color:#8499bd;">台指</span><span style="color:'+_mc(tw_c)+';">'+str(int(mkt.get("台指",{}).get("price",0)))+' '+_ms(tw_c)+'</span>'
+        +'<span style="color:#8499bd;">｜納指</span><span style="color:'+_mc(nas_c)+';">'+str(int(mkt.get("納指",{}).get("price",0)))+' '+_ms(nas_c)+'</span>'
+        +'<span style="color:#8499bd;">｜TSM ADR</span><span style="color:'+_mc(tsm_c)+';">'+str(round(mkt.get("TSM",{}).get("price",0),1))+' '+_ms(tsm_c)+'</span>'
         +'</div>',unsafe_allow_html=True)
     # All-in-one tab bar: 匯入 | 持有股 | 推薦 (同一行)
     n_port=len(st.session_state.get("portfolio",[]))
@@ -1092,12 +1092,12 @@ def main():
             tpnl=sum(r["pnl_amt"] for r in res_t0 if r.get("price_ok"))
             tcost=sum(r["cost"]*r["shares"] for r in res_t0 if r.get("price_ok"))
             tpct=tpnl/tcost*100 if tcost>0 else 0
-            pc="#3fb950" if tpnl>=0 else "#f85149"
+            pc="#ff4d61" if tpnl>=0 else "#23d18b"
             ps="+" if tpnl>=0 else ""; pp="+" if tpct>=0 else ""
-            st.markdown('<div style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:10px 14px;margin:6px 0;display:flex;justify-content:space-between;align-items:center;"><span style="color:#8b949e;font-size:0.8rem;">📊 持倉總損益（'+str(len(cur_port))+'筆）</span><span style="color:'+pc+';font-size:1.1rem;font-weight:800;">'+ps+str(int(tpnl))+'元 （'+pp+str(round(tpct,1))+'%）</span></div>',unsafe_allow_html=True)
+            st.markdown('<div style="background:#0f1726;border:1px solid #2a3a57;border-radius:8px;padding:10px 14px;margin:6px 0;display:flex;justify-content:space-between;align-items:center;"><span style="color:#8499bd;font-size:0.9rem;">📊 持倉總損益（'+str(len(cur_port))+'筆）</span><span style="color:'+pc+';font-size:1.14rem;font-weight:800;">'+ps+str(int(tpnl))+'元 （'+pp+str(round(tpct,1))+'%）</span></div>',unsafe_allow_html=True)
             bk="daily_brief"; dk="brief_date"; td=datetime.date.today().isoformat()
             cb1,cb2=st.columns([3,1])
-            with cb1: st.markdown('<span style="color:#58a6ff;font-weight:700;font-size:0.85rem;">🌐 今日盤前AI總結</span>',unsafe_allow_html=True)
+            with cb1: st.markdown('<span style="color:#2dd4ff;font-weight:700;font-size:0.94rem;">🌐 今日盤前AI總結</span>',unsafe_allow_html=True)
             with cb2:
                 _gen_brief=st.button("生成",key="ref_brief",help="產生今日盤前AI總結")
             if _gen_brief:
@@ -1106,7 +1106,7 @@ def main():
                     st.session_state[bk]=generate_daily_brief(mkt,us,cur_port)
                     st.session_state[dk]=td
             if st.session_state.get(bk):
-                st.markdown('<div style="background:linear-gradient(135deg,#0d1f2e,#0a1628);border:1px solid #1f6feb;border-radius:8px;padding:10px 14px;margin:4px 0;font-size:0.83rem;color:#c9d1d9;line-height:1.6;">'+str(st.session_state[bk]).replace("<","&lt;").replace(">","&gt;").replace("\n","<br>")+'</div>',unsafe_allow_html=True)
+                st.markdown('<div style="background:linear-gradient(135deg,#0a2238,#08182e);border:1px solid #2d8fd8;border-radius:8px;padding:10px 14px;margin:4px 0;font-size:0.92rem;color:#cdd9ee;line-height:1.6;">'+str(st.session_state[bk]).replace("<","&lt;").replace(">","&gt;").replace("\n","<br>")+'</div>',unsafe_allow_html=True)
     with tab1:
         if not portfolio: st.info("請先匯入持股 CSV")
         else:
@@ -1138,11 +1138,11 @@ def main():
                 with tab:
                     is_profit_tab=profit_l and group is profit_l
                     if is_profit_tab:
-                        st.markdown('<div style="background:#1a1500;border:1px solid #c9871f;border-radius:8px;padding:8px 12px;margin-bottom:6px;font-size:0.8rem;color:#d2a679;">📌 以下持股已達獲利了結條件：大幅獲利或技術轉弱，建議優先處理，設追蹤停利或分批出場。</div>',unsafe_allow_html=True)
+                        st.markdown('<div style="background:#1c1a06;border:1px solid #d09a2a;border-radius:8px;padding:8px 12px;margin-bottom:6px;font-size:0.9rem;color:#e0b56a;">📌 以下持股已達獲利了結條件：大幅獲利或技術轉弱，建議優先處理，設追蹤停利或分批出場。</div>',unsafe_allow_html=True)
                     if not group: st.caption("本區無持股")
                     for r in group:
                         pnl_s="+" if r["pnl_pct"]>=0 else ""
-                        pnl_clr="#3fb950" if r["pnl_pct"]>=0 else "#f85149"
+                        pnl_clr="#ff4d61" if r["pnl_pct"]>=0 else "#23d18b"
                         pnl_disp=(pnl_s+str(int(r["pnl_amt"]))+"("+pnl_s+str(round(r["pnl_pct"],1))+"%)"+" | "+str(r["price"])) if r.get("price_ok") else "⚙️"
                         with st.expander(r["name"]+" | "+pnl_disp,expanded=False):
                             render_stock_card(r)
@@ -1154,17 +1154,17 @@ def main():
             st.info("目前無符合條件推薦股（評分≥2）")
         else:
             if ready_picks:
-                st.markdown('<div style="color:#3fb950;font-weight:700;font-size:0.85rem;margin:4px 0;">✅ 今日可入手</div>',unsafe_allow_html=True)
+                st.markdown('<div style="color:#2dd4ff;font-weight:700;font-size:0.94rem;margin:4px 0;">✅ 今日可入手</div>',unsafe_allow_html=True)
                 for p in ready_picks:
                     with st.expander(p["name"]+"  "+p["ticker"]+"  +"+str(p["buy_score"])+"分",expanded=False):
                         render_pick_card(p)
             if pullback_picks:
-                st.markdown('<div style="color:#79c0ff;font-weight:700;font-size:0.85rem;margin:4px 0;">🔵 漲多等回測</div>',unsafe_allow_html=True)
+                st.markdown('<div style="color:#5cc8ff;font-weight:700;font-size:0.94rem;margin:4px 0;">🔵 漲多等回測</div>',unsafe_allow_html=True)
                 for p in pullback_picks:
                     with st.expander(p["name"]+"  "+p["ticker"]+"  +"+str(p["buy_score"])+"分",expanded=False):
                         render_pick_card(p)
             if watch_picks:
-                st.markdown('<div style="color:#e3b341;font-weight:700;font-size:0.85rem;margin:4px 0;">⏳ 技術待確認</div>',unsafe_allow_html=True)
+                st.markdown('<div style="color:#ffd24a;font-weight:700;font-size:0.94rem;margin:4px 0;">⏳ 技術待確認</div>',unsafe_allow_html=True)
                 for p in watch_picks:
                     with st.expander(p["name"]+"  "+p["ticker"]+"  +"+str(p["buy_score"])+"分",expanded=False):
                         render_pick_card(p)
@@ -1239,15 +1239,15 @@ def main():
                         _cmpv1b.html("<script>localStorage.setItem('favorites','"+_fjson2.dumps(st.session_state['favorites']).replace("'","\'")+"');</script>",height=0)
                         st.rerun()
                 with _sq_hdr_c2:
-                    st.markdown('<div style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:8px 12px;margin:4px 0;display:flex;justify-content:space-between;align-items:center;">'
-                        +'<span style="color:#e6edf3;font-weight:700;font-size:1rem;">'+sq_name+' <span style="color:#8b949e;font-size:0.75rem;">'+sq_ticker+'</span></span>'
-                        +'<span style="color:#3fb950;font-size:1.1rem;font-weight:800;">'+str(sq_price)+'</span>'
+                    st.markdown('<div style="background:#0f1726;border:1px solid #2a3a57;border-radius:8px;padding:8px 12px;margin:4px 0;display:flex;justify-content:space-between;align-items:center;">'
+                        +'<span style="color:#eaf2ff;font-weight:700;font-size:1rem;">'+sq_name+' <span style="color:#8499bd;font-size:0.86rem;">'+sq_ticker+'</span></span>'
+                        +'<span style="color:#23d18b;font-size:1.14rem;font-weight:800;">'+str(sq_price)+'</span>'
                         +'</div>',unsafe_allow_html=True)
                 # Query links
                 st.markdown('<div style="display:flex;gap:8px;margin:4px 0;">'
-                    +'<a href="https://tw.stock.yahoo.com/quote/'+_sq_num+'" target="_blank" style="background:#21262d;color:#58a6ff;border-radius:5px;padding:3px 9px;font-size:0.72rem;text-decoration:none;">📊 Yahoo</a>'
-                    +'<a href="https://goodinfo.tw/tw/StockInfo.asp?STOCK_ID='+_sq_num+'" target="_blank" style="background:#21262d;color:#79c0ff;border-radius:5px;padding:3px 9px;font-size:0.72rem;text-decoration:none;">📈 Goodinfo</a>'
-                    +'<a href="https://www.tradingview.com/symbols/TWSE-'+_sq_num+'" target="_blank" style="background:#21262d;color:#e3b341;border-radius:5px;padding:3px 9px;font-size:0.72rem;text-decoration:none;">🕯 TradingView</a>'
+                    +'<a href="https://tw.stock.yahoo.com/quote/'+_sq_num+'" target="_blank" style="background:#18243a;color:#2dd4ff;border-radius:5px;padding:3px 9px;font-size:0.84rem;text-decoration:none;">📊 Yahoo</a>'
+                    +'<a href="https://goodinfo.tw/tw/StockInfo.asp?STOCK_ID='+_sq_num+'" target="_blank" style="background:#18243a;color:#5cc8ff;border-radius:5px;padding:3px 9px;font-size:0.84rem;text-decoration:none;">📈 Goodinfo</a>'
+                    +'<a href="https://www.tradingview.com/symbols/TWSE-'+_sq_num+'" target="_blank" style="background:#18243a;color:#ffd24a;border-radius:5px;padding:3px 9px;font-size:0.84rem;text-decoration:none;">🕯 TradingView</a>'
                     +''
                     +'</div>',unsafe_allow_html=True)
                 if sq_ind:
@@ -1256,10 +1256,10 @@ def main():
                     st.markdown('<div class="sbar">RSI:'+str(sq_ind.get("rsi","-"))+" MACD:"+str(round(sq_ind.get("macd",0),3))+" K:"+str(sq_ind.get("k","-"))+" D:"+str(sq_ind.get("d","-"))+" MA20:"+str(sq_ind.get("ma20","-"))+" "+ma_icon+' | 今漲:'+str(sq_ind.get("today_gain","—"))+'% 量比:'+str(sq_ind.get("vol_ratio","—"))+'x</div>',unsafe_allow_html=True)
                     # Signal grade
                     sq_grade, sq_sigs = get_signal_grade(sq_ind)
-                    grade_map={"ready":("#3fb950","✅ 訊號明確，可留意入場"),"pullback":("#79c0ff","🔵 有訊號但漲太多，等回測"),"watch":("#e3b341","⏳ 技術待確認，觀望"),"none":("#8b949e","— 目前無明確進場訊號")}
-                    gc,gt=grade_map.get(sq_grade,("#8b949e","—"))
+                    grade_map={"ready":("#2dd4ff","✅ 訊號明確，可留意入場"),"pullback":("#5cc8ff","🔵 有訊號但漲太多，等回測"),"watch":("#ffd24a","⏳ 技術待確認，觀望"),"none":("#8499bd","— 目前無明確進場訊號")}
+                    gc,gt=grade_map.get(sq_grade,("#8499bd","—"))
                     sigs_str=" | ".join(sq_sigs) if sq_sigs else "無突破訊號"
-                    st.markdown('<div style="background:#161b22;border-left:3px solid '+gc+';border-radius:6px;padding:6px 10px;margin:4px 0;"><span style="color:'+gc+';font-weight:700;font-size:0.82rem;">'+gt+'</span><br><span style="color:#8b949e;font-size:0.72rem;">訊號：'+sigs_str+'</span></div>',unsafe_allow_html=True)
+                    st.markdown('<div style="background:#0f1726;border-left:3px solid '+gc+';border-radius:6px;padding:6px 10px;margin:4px 0;"><span style="color:'+gc+';font-weight:700;font-size:0.92rem;">'+gt+'</span><br><span style="color:#8499bd;font-size:0.84rem;">訊號：'+sigs_str+'</span></div>',unsafe_allow_html=True)
                 else:
                     st.warning("無法取得技術指標（資料不足）")
                 # K-line
@@ -1287,14 +1287,14 @@ def main():
                         import re as _re2
                         _txt2 = str(st.session_state[sq_ai_key])
                         _parts2 = _re2.split(r'(【[^】]+】)', _txt2)
-                        _colors2 = {"結論":"#f0883e","走勢":"#79c0ff","理由":"#e3b341","新聞":"#7ee787"}
-                        _cur2 = "#c9d1d9"
+                        _colors2 = {"結論":"#ff9a4d","走勢":"#5cc8ff","理由":"#ffd24a","新聞":"#5cf0b0"}
+                        _cur2 = "#cdd9ee"
                         for _p2 in _parts2:
                             if _p2.startswith("【") and _p2.endswith("】"):
-                                _cur2 = _colors2.get(_p2[1:-1],"#c9d1d9")
-                                st.markdown('<span style="color:'+_cur2+';font-weight:700;font-size:0.95rem;">'+_p2+'</span>',unsafe_allow_html=True)
+                                _cur2 = _colors2.get(_p2[1:-1],"#cdd9ee")
+                                st.markdown('<span style="color:'+_cur2+';font-weight:700;font-size:1.0rem;">'+_p2+'</span>',unsafe_allow_html=True)
                             elif _p2.strip():
-                                st.markdown('<div style="color:#c9d1d9;font-size:0.88rem;line-height:1.6;margin:4px 0 12px 0;padding-left:8px;border-left:2px solid '+_cur2+';">'+_p2.strip()+'</div>',unsafe_allow_html=True)
+                                st.markdown('<div style="color:#cdd9ee;font-size:0.96rem;line-height:1.6;margin:4px 0 12px 0;padding-left:8px;border-left:2px solid '+_cur2+';">'+_p2.strip()+'</div>',unsafe_allow_html=True)
 
 
     with tab4:
